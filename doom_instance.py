@@ -66,6 +66,7 @@ class DoomInstance:
     def step_normalized(self, action):
         state, reward, finished = self.step(action)
         state = self.normalize(state)
+        # comment this for basic and rocket configs
         if state.variables is not None:
             reward += (state.variables - self.variables).sum()
 
