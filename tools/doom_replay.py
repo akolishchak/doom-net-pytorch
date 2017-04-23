@@ -8,6 +8,7 @@ import glob
 import argparse
 from vizdoom import *
 
+
 def replay(config, wad, skiprate, path):
     game = DoomGame()
     game.set_doom_game_path(wad)
