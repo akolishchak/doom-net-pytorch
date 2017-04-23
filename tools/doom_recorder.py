@@ -126,8 +126,8 @@ class DoomRecorder:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Doom Recorder')
-    # parser.add_argument('--vizdoom_config', default='environments/health_gathering.cfg', help='vizdoom config path')
-    parser.add_argument('--vizdoom_config', default='environments/deathmatch.cfg', help='vizdoom config path')
+    # parser.add_argument('--vizdoom_config', default='../environments/health_gathering.cfg', help='vizdoom config path')
+    parser.add_argument('--vizdoom_config', default='../environments/deathmatch.cfg', help='vizdoom config path')
     parser.add_argument('--vizdoom_path', default=os.path.expanduser('~') + '/tools/ViZDoom/bin/vizdoom',
                         help='path to vizdoom')
     parser.add_argument('--wad_path', default=os.path.expanduser('~') + '/tools/ViZDoom/scenarios/Doom2.wad',
