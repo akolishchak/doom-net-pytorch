@@ -7,25 +7,27 @@ import torch.nn as nn
 import torch.nn.functional as F
 from cuda import *
 from collections import namedtuple
+from base_model import BaseModel
 
 ModelOutput = namedtuple('ModelOutput', ['action', 'value'])
 
 
-class AdvantageActorCritic(nn.Module):
-
+class AdvantageActorCritic(BaseModel):
     def __init__(self, args):
-        super(AdvantageActorCritic, self).__init__()
-        self.discount = args.episode_discount
-        feature_num = 64
-        self.conv1 = nn.Conv2d(in_channels=args.screen_size[0], out_channels=32, kernel_size=3, stride=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)
-        self.conv4 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2)
+        super(AdvantageActorCritic, self).__init__(args.screen_size, args.button_num)
+        if args.base_model is not None:
+            # load weights from the base model
+            base_model = torch.load(args.base_model)
+            self.conv1.load_state_dict(base_model.conv1.state_dict())
+            self.conv2.load_state_dict(base_model.conv2.state_dict())
+            self.conv3.load_state_dict(base_model.conv3.state_dict())
+            self.conv4.load_state_dict(base_model.conv4.state_dict())
+            self.features.load_state_dict(base_model.features.state_dict())
+            self.batch_norm.load_state_dict(base_model.batch_norm.state_dict())
+            self.action.load_state_dict(base_model.action.state_dict())
 
-        self.features = nn.Linear(64 * 14 * 19, feature_num)
-        self.batch_norm = nn.BatchNorm1d(feature_num)
-        self.action = nn.Linear(feature_num, args.button_num)
-        self.value = nn.Linear(feature_num, 1)
+        self.discount = args.episode_discount
+        self.value = nn.Linear(self.feature_num, 1)
         self.outputs = []
         self.rewards = []
 
@@ -36,9 +38,12 @@ class AdvantageActorCritic(nn.Module):
     def forward(self, input):
         # cnn
         input = F.relu(self.conv1(input))
-        input = F.relu(F.max_pool2d(self.conv2(input), kernel_size=2, stride=2))
-        input = F.relu(F.max_pool2d(self.conv3(input), kernel_size=2, stride=2))
-        input = F.relu(F.max_pool2d(self.conv4(input), kernel_size=2, stride=2))
+        input = F.relu(self.conv2(input))
+        input = F.relu(self.conv3(input))
+        input = F.relu(self.conv4(input))
+
+        #input = self.softmax(input / 1e-1)
+
         input = input.view(input.size(0), -1)
         # shared features
         features = F.relu(self.batch_norm(self.features(input)))
