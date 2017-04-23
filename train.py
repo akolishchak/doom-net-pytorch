@@ -26,7 +26,7 @@ def train(args, model):
 
     games = []
     for i in range(args.batch_size):
-        games.append(DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, i))
+        games.append(DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, i, actions=args.action_set))
 
     pool = ThreadPool()
 
