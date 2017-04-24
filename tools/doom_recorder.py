@@ -16,6 +16,7 @@ class DoomRecorder:
         self.game = DoomGame()
         self.game.set_doom_game_path(wad)
         self.game.load_config(config)
+        self.game.set_sound_enabled(True)
         #self.game.add_game_args("+freelook 1")
         self.skiprate = skiprate
         self.h5_path = h5_path
@@ -44,7 +45,7 @@ class DoomRecorder:
                 action = self.game.get_last_action()
                 reward = self.game.get_last_reward()
 
-                if all(a == 0 for a in action):  # save only if an action is taken
+                if not all(a == 0 for a in action):  # save only if an action is taken
                     screens.append(state.screen_buffer)
                     actions.append(action)
                     rewards.append(reward)
