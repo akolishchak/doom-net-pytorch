@@ -20,7 +20,8 @@ class BaseModel(nn.Module):
 
         self.features = nn.Linear(self.feature_num * 14 * 19, self.feature_num)
         self.batch_norm = nn.BatchNorm1d(self.feature_num)
-        self.action = nn.Linear(self.feature_num, button_num)
+        self.action1 = nn.Linear(self.feature_num, 512)
+        self.action2 = nn.Linear(512, button_num)
 
     def forward(self, input):
         # cnn
@@ -37,5 +38,6 @@ class BaseModel(nn.Module):
         features = F.relu(self.batch_norm(self.features(input)))
         #features = F.relu(self.features(input))
         # action
-        action = self.action(features)
+        action = F.relu(self.action1(features))
+        action = self.action2(action)
         return action
