@@ -3,6 +3,7 @@
 #
 # Created by Andrey Kolishchak on 01/21/17.
 #
+import os
 from multiprocessing.pool import ThreadPool
 import time
 import torch.optim as optim
