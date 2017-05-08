@@ -68,7 +68,10 @@ class DoomInstance:
         state = self.normalize(state)
         # comment this for basic and rocket configs
         if state.variables is not None:
-            reward += (state.variables - self.variables).sum()
+            diff = state.variables - self.variables
+            #diff[2] *= 20
+            reward += diff.sum()
+            self.variables = state.variables
 
         return state, reward, finished
 
