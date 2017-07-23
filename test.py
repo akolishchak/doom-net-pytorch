@@ -5,23 +5,25 @@
 #
 import torch
 from doom_instance import *
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import cm
-import cv2
+from cuda import *
+
 
 def test(args, model):
     print("testing...")
     model.eval()
 
-    game = DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, visible=True, actions=args.action_set)
+    game = DoomInstance(
+        args.vizdoom_config, args.wad_path, args.skiprate, visible=True, actions=args.action_set, bot_cmd=args.bot_cmd)
     step_state = game.get_state_normalized()
 
     state = NormalizedState(screen=None, depth=None, labels=None, variables=None)
     state.screen = torch.Tensor(1, *args.screen_size)
+    state.variables = torch.Tensor(1, args.variable_num)
 
     while True:
         # convert state to torch tensors
         state.screen[0, :] = torch.from_numpy(step_state.screen)
+        state.variables[0, :] = torch.from_numpy(step_state.variables)
         # compute an action
         action = model.get_action(state)
         # render
@@ -31,7 +33,4 @@ def test(args, model):
         #plt.imsave('map.jpeg', img)
         if finished:
             print("episode return: {}".format(game.get_episode_return()))
-
-
-
-
+            model.set_terminal(torch.zeros(1))

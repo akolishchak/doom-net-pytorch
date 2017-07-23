@@ -69,7 +69,7 @@ class DoomRecorder:
             print("Episode finished!")
             print("Total reward:", self.game.get_total_reward())
             print("************************")
-
+            """
             print("writing episode...")
             with h5py.File(self.h5_path + timestamp + '.h5', 'w') as file:
                 file.create_dataset("screens", data=screens, compression='gzip')
@@ -83,7 +83,7 @@ class DoomRecorder:
                     file.create_dataset("labels", data=labels, compression='gzip')
                 if automaps:
                     file.create_dataset("automaps", data=automaps, compression='gzip')
-
+            """
         self.game.close()
 
     def replay(self):
@@ -128,7 +128,7 @@ class DoomRecorder:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Doom Recorder')
     # parser.add_argument('--vizdoom_config', default='../environments/health_gathering.cfg', help='vizdoom config path')
-    parser.add_argument('--vizdoom_config', default='../environments/deathmatch.cfg', help='vizdoom config path')
+    parser.add_argument('--vizdoom_config', default='../environments/rocket_basic.cfg', help='vizdoom config path')
     parser.add_argument('--vizdoom_path', default=os.path.expanduser('~') + '/tools/ViZDoom/bin/vizdoom',
                         help='path to vizdoom')
     parser.add_argument('--wad_path', default=os.path.expanduser('~') + '/tools/ViZDoom/scenarios/Doom2.wad',

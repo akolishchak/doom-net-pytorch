@@ -11,11 +11,18 @@ def init_doom_env(args):
     if args.action_set is not None:
         args.action_set = np.load(args.action_set).tolist()
 
-    doom = DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, actions=args.action_set)
+    doom = DoomInstance(
+        args.vizdoom_config,
+        wad=args.wad_path,
+        skiprate=args.skiprate,
+        id=None,
+        visible=False,
+        actions=args.action_set)
     state = doom.get_state()
 
     args.button_num = doom.get_button_num()
     args.screen_size = state.screen_buffer.shape
+    args.variable_num = len(state.game_variables)
     #args.screen_size = (1, state.screen_buffer.shape[1], state.screen_buffer.shape[2])
     if state.game_variables is not None:
         args.variables_size = state.game_variables.shape

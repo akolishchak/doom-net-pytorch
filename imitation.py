@@ -12,8 +12,8 @@ from torch.utils.data import Dataset, DataLoader
 from cuda import *
 import argparse
 from doom_instance import *
-from base_model import BaseModel
-
+from aac_duel import BaseModelDuel
+from aac import BaseModel
 
 class DoomDataset(Dataset):
     def __init__(self, h5_path):
@@ -32,13 +32,17 @@ class DoomDataset(Dataset):
         self.data = None
         self.inputs = None
         self.labels = None
+        self.variables = None
 
     def __getitem__(self, index):
         if self.data is None:
             self.data = h5py.File(self.h5_path, 'r')
             self.inputs = self.data['screens']
             self.labels = self.data['action_labels']
-        return self.inputs[index].astype(np.float32) / 127.5 - 1.0, self.labels[index].astype(np.int)
+            self.variables = self.data['variables']
+        return self.inputs[index].astype(np.float32) / 127.5 - 1.0, \
+               self.variables[index].astype(np.float32) / 100, \
+               self.labels[index].astype(np.int)
 
     def __len__(self):
         return self.length
@@ -47,24 +51,33 @@ class DoomDataset(Dataset):
 def train(args):
 
     train_set = DoomDataset(args.h5_path)
+    np.save('action_set', train_set.action_sets)
     training_data_loader = DataLoader(dataset=train_set, num_workers=2, batch_size=100, shuffle=True)
 
-    model = BaseModel(train_set.input_shape, len(train_set.action_sets))
+    model = BaseModel(train_set.input_shape[0], len(train_set.action_sets), 3, args.frame_num)
+
+    if args.load is not None and os.path.isfile(args.load):
+        print("loading model parameters {}".format(args.load))
+        source_model = torch.load(args.load)
+        model.load_state_dict(source_model.state_dict())
+        del source_model
+
     if USE_CUDA:
         model.cuda()
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=5e-4)
 
-    for epoch in range(10):
+    for epoch in range(1500000):
         running_loss = 0
         running_accuracy = 0
         batch_time = time.time()
-        for batch, (inputs, labels) in enumerate(training_data_loader):
-            inputs, labels = Variable(inputs), Variable(labels)
+        for batch, (screens, variables, labels) in enumerate(training_data_loader):
+            screens, variables, labels = Variable(screens), Variable(variables), Variable(labels)
 
             optimizer.zero_grad()
 
-            outputs = model(inputs)
+            outputs = model(screens, variables)[0]
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -86,48 +99,21 @@ def train(args):
                 running_accuracy = 0
                 batch_time = time.time()
 
-    torch.save(model, 'imitation_model.pth')
-    np.save('action_set', train_set.action_sets)
-
-
-def test(args):
-    print("testing...")
-    model = torch.load('imitation_model.pth')
-    if USE_CUDA:
-        model.cuda()
-    model.eval()
-
-    action_sets = np.load('action_set.npy').tolist()
-
-    game = DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, visible=True, actions=action_sets)
-    step_state = game.get_state_normalized()
-
-    while True:
-        # convert state to torch tensors
-        inputs = torch.from_numpy(step_state.screen)
-        inputs = Variable(inputs, volatile=True)
-        # compute an action
-        outputs = model(inputs)
-        _, action = outputs.data.max(1)
-
-        # render
-        step_state, _, finished = game.step_normalized(action[0][0])
-        if finished:
-            print("episode return: {}".format(game.get_episode_return()))
+        if epoch % args.checkpoint_rate == args.checkpoint_rate - 1:
+            torch.save(model, args.checkpoint_file)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Doom Recorder')
-    parser.add_argument('--vizdoom_config', default='environments/health_gathering.cfg', help='vizdoom config path')
-    #parser.add_argument('--vizdoom_config', default='environments/deathmatch.cfg', help='vizdoom config path')
-    parser.add_argument('--vizdoom_path', default=os.path.expanduser('~') + '/tools/ViZDoom/bin/vizdoom',
-                        help='path to vizdoom')
-    parser.add_argument('--wad_path', default=os.path.expanduser('~') + '/tools/ViZDoom/scenarios/Doom2.wad',
-                        help='wad file path')
-    parser.add_argument('--h5_path', default=os.path.expanduser('~') + '/test/datasets/vizdoom/health_gathering/flat.h5',
+    parser.add_argument('--batch_size', type=int, default=100, help='number of game instances running in parallel')
+    parser.add_argument('--load', default=None, help='path to model file')
+    parser.add_argument('--h5_path', default=os.path.expanduser('~') + '/test/datasets/vizdoom/cig_map01/flat.h5',
                         help='hd5 file path')
-    parser.add_argument('--skiprate', type=int, default=1, help='number of skipped frames')
 
+    parser.add_argument('--skiprate', type=int, default=1, help='number of skipped frames')
+    parser.add_argument('--frame_num', type=int, default=1, help='number of frames per input')
+    parser.add_argument('--checkpoint_file', default=None, help='check point file name')
+    parser.add_argument('--checkpoint_rate', type=int, default=5000, help='number of batches per checkpoit')
     args = parser.parse_args()
 
     train(args)

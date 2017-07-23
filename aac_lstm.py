@@ -8,88 +8,150 @@ import torch.nn.functional as F
 from cuda import *
 from collections import namedtuple
 from lstm import LSTM
+from egreedy import EGreedy
+
 
 ModelOutput = namedtuple('ModelOutput', ['action', 'value'])
 
+class BaseModelLSTM(nn.Module):
+    def __init__(self, in_channels, button_num, variable_num):
+        super(BaseModelLSTM, self).__init__()
+        self.screen_feature_num = 512
+        self.feature_num = self.screen_feature_num
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, stride=2)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
+        self.conv4 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2)
+        self.conv5 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2)
+        self.conv6 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2)
 
-class AdvantageActorCriticLSTM(nn.Module):
+        self.batch_norm = nn.BatchNorm1d(self.screen_feature_num)
 
-    def __init__(self, args):
-        super(AdvantageActorCriticLSTM, self).__init__()
-        self.discount = args.episode_discount
-        self.feature_num = 64
-        self.conv1 = nn.Conv2d(in_channels=args.screen_size[0], out_channels=32, kernel_size=3, stride=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)
-        self.conv4 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2)
-
-        # self.rnn = nn.LSTMCell(64 * 14 * 19, self.feature_num)
-        self.rnn = LSTM(64 * 14 * 19, self.feature_num)
+        #self.screen_features1 = nn.LSTMCell(512 * 2 * 4, self.screen_feature_num)
+        self.screen_features1 = LSTM(512 * 2 * 4, self.screen_feature_num)
         self.hx = None
         self.cx = None
-        self.batch_norm = nn.BatchNorm2d(64)
-        self.action = nn.Linear(self.feature_num, args.button_num)
+
+        layer1_size = 128
+        self.action1 = nn.Linear(self.screen_feature_num, layer1_size)
+        self.action2 = nn.Linear(layer1_size + variable_num, button_num)
+
+        self.value1 = nn.Linear(self.screen_feature_num, layer1_size)
+        self.value2 = nn.Linear(layer1_size + variable_num, 1)
+
+
+    def forward(self, screen, variables):
+        # cnn
+        screen_features = F.relu(self.conv1(screen))
+        screen_features = F.relu(self.conv2(screen_features))
+        screen_features = F.relu(self.conv3(screen_features))
+        screen_features = F.relu(self.conv4(screen_features))
+        screen_features = F.relu(self.conv5(screen_features))
+        screen_features = F.relu(self.conv6(screen_features))
+        screen_features = screen_features.view(screen_features.size(0), -1)
+        # lstm
+        if self.hx is None:
+            self.hx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
+            self.cx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
+        self.hx, self.cx = self.screen_features1(screen_features, (self.hx, self.cx))
+
+        # action
+        action = F.relu(self.action1(self.hx))
+        action = torch.cat([action, variables], 1)
+        action = self.action2(action)
+        return action
+
+    def set_terminal(self, terminal):
+        terminal = Variable(terminal.view(-1, 1).expand_as(self.cx))
+        self.cx = self.cx * terminal
+        self.hx = self.hx * terminal
+
+    def reset(self):
+        if self.hx is not None:
+            self.hx = Variable(self.hx.data, volatile=not self.training)
+        if self.cx is not None:
+            self.cx = Variable(self.cx.data, volatile=not self.training)
+
+
+class AdvantageActorCriticLSTM(BaseModelLSTM):
+    def __init__(self, args):
+        super(AdvantageActorCriticLSTM, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num)
+        if args.base_model is not None:
+            # load weights from the base model
+            base_model = torch.load(args.base_model)
+            self.load_state_dict(base_model.state_dict())
+
+        self.discount = args.episode_discount
         self.value = nn.Linear(self.feature_num, 1)
         self.outputs = []
         self.rewards = []
+        self.discounts = []
 
     def reset(self):
-        self.hx = None
-        self.cx = None
-        del self.outputs[:]
-        del self.rewards[:]
+        if self.hx is not None:
+            self.hx = Variable(self.hx.data)
+        if self.cx is not None:
+            self.cx = Variable(self.cx.data)
+        self.outputs = []
+        self.rewards = []
+        self.discounts = []
 
-    def forward(self, input):
-        # cnn
-        input = F.relu(self.conv1(input))
-        input = F.relu(F.max_pool2d(self.conv2(input), kernel_size=2, stride=2))
-        input = F.relu(F.max_pool2d(self.conv3(input), kernel_size=2, stride=2))
-        input = F.relu(F.max_pool2d(self.conv4(input), kernel_size=2, stride=2))
-        input = input.view(input.size(0), -1)
-        # lstm
-        if self.hx is None:
-            self.hx = Variable(torch.zeros(input.size(0), self.feature_num), volatile=not self.training)
-            self.cx = Variable(torch.zeros(input.size(0), self.feature_num), volatile=not self.training)
-        self.hx, self.cx = self.rnn(input, (self.hx, self.cx))
+    def forward(self, screen, variables):
+        action = super(AdvantageActorCriticLSTM, self).forward(screen, variables)
+
         # action
-        action = F.softmax(self.action(self.hx))
+        action = F.softmax(action)
         if self.training:
-            action = action.multinomial()
+            #action = action.multinomial()
+            action = EGreedy(0.10)(action)
         else:
             _, action = action.max(1)
             return action, None
+
         # value prediction - critic
-        value = self.value(self.hx)
+        value = F.relu(self.value1(self.hx))
+        value = torch.cat([value, variables], 1)
+        value = self.value2(value)
+
         # save output for backpro
         self.outputs.append(ModelOutput(action, value))
         return action, value
 
     def get_action(self, state):
-        input = Variable(state.screen, volatile=not self.training)
-        action, _ = self.forward(input)
+        screen = Variable(state.screen, volatile=not self.training)
+        variables = Variable(state.variables / 100, volatile=not self.training)
+        action, _ = self.forward(screen, variables)
         return action.data
 
     def set_reward(self, reward):
-        self.rewards.append(reward*0.01)
+        self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
+
+    def set_terminal(self, terminal):
+        super(AdvantageActorCriticLSTM, self).set_terminal(terminal)
+        self.discounts.append(self.discount * terminal)
 
     def backward(self):
         #
-        # calculate step returns in reverse order
-        returns = []
-        step_return = self.outputs[-1].value.data
-        for reward in self.rewards[::-1]:
-            step_return.mul_(self.discount).add_(reward.cuda() if USE_CUDA else reward)
-            returns.insert(0, step_return.clone())
+        rewards = self.rewards
+
+        returns = torch.Tensor(len(rewards) - 1, *self.outputs[-1].value.data.size())
+        step_return = self.outputs[-1].value.data.cpu()
+        for i in range(len(rewards) - 2, -1, -1):
+            step_return.mul_(self.discounts[i]).add_(rewards[i])
+            returns[i] = step_return
+
+        if USE_CUDA:
+            returns = returns.cuda()
         #
         # calculate losses
         value_loss = 0
-        for i in range(len(self.outputs)):
+        for i in range(len(self.outputs) - 1):
             self.outputs[i].action.reinforce(returns[i] - self.outputs[i].value.data)
             value_loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
         #
         # backpro all variables at once
-        variables = [value_loss] + [output.action for output in self.outputs]
-        gradients = [torch.ones(1).cuda() if USE_CUDA else torch.ones(1)] + [None for _ in self.outputs]
+        variables = [value_loss] + [output.action for output in self.outputs[:-1]]
+        gradients = [torch.ones(1).cuda() if USE_CUDA else torch.ones(1)] + [None for _ in self.outputs[:-1]]
         autograd.backward(variables, gradients)
         # reset state
         self.reset()
