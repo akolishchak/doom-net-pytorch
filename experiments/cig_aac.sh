@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 BASEDIR=$(dirname "$( cd "$( dirname "$0" )" && pwd )")
-BASEDIR=$(dirname "$( cd "$( dirname "$0" )" && pwd )")
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 [train|resume|test]"
     exit 1

@@ -21,7 +21,7 @@ if [ $COMMAND == 'train' ]
 then
     python $BASEDIR/main_train.py \
     --episode_size 20 \
-    --batch_size 5 \
+    --batch_size 10 \
     --episode_discount 0.95 \
     --model $MODEL \
     --action_set $ACTION_SET \
@@ -42,11 +42,11 @@ then
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
-    --bot_cmd $BOT_CMD \
+    --bot_cmd "$BOT_CMD" \
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500
+    --checkpoint_rate 100
 elif [ $COMMAND == 'test' ]
 then
     python $BASEDIR/main_test.py \

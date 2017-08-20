@@ -9,7 +9,7 @@ fi
 COMMAND="$1"
 MODEL=aac
 CHECK_POINT=$BASEDIR/checkpoints/cig_map02_aac_20_95_skip4_cp.pth
-ACTION_SET=$BASEDIR/actions/action_set_speed_shot_backward_right_2.npy
+ACTION_SET=$BASEDIR/actions/action_set_cig2_speed.npy
 CONFIG=$BASEDIR/environments/cig2.cfg
 
 if [ $COMMAND == 'train' ]
@@ -20,7 +20,7 @@ then
     --episode_discount 0.95 \
     --model $MODEL \
     --action_set $ACTION_SET \
-    --base_model $BASEDIR/checkpoints/cig_map02_imitation_aac_cp.pth \
+    --base_model $BASEDIR/trained_models/cig_map02_imitation_model_aac.pth \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
