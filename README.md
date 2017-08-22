@@ -9,19 +9,23 @@ Models:
 
 ### Trained models
 
-#### [Visual Doom AI Competition 2017, Elimination Round](http://vizdoom.cs.put.edu.pl/competition-cig-2017), check for DoomNet
+#### [Visual Doom AI Competition 2017](http://vizdoom.cs.put.edu.pl/competition-cig-2017), check for DoomNet
 Joined work with [Bobby DeSimone](https://github.com/desimone)
 
 [![Doom-net track1, elimination round 2017](images/comp_track1_elimination.png)](https://youtu.be/2Pr0WUMNCvw)
 
+
 #### D3 Battle
 [![Doom-net trained on D3-battle config](images/D3-battle.png)](https://youtu.be/gxs8JowQ2Pc)
+
 
 #### Health Gathering
 [![Doom-net trained on health gathering config](images/health_gathering.png)](https://youtu.be/0jA6uUXDtkk)
 
+
 #### Rocket Basic
 [![Doom-net trained on basic rocket config](images/rocket.png)](https://youtu.be/8hQO5VzsnkI)
+
 
 #### Basic
 [![Doom-net trained on basic config](images/basic.png)](https://youtu.be/Ej-5UgjVJEs)
