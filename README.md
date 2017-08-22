@@ -10,8 +10,7 @@ Models:
 ### Trained models
 
 #### [Visual Doom AI Competition 2017](http://vizdoom.cs.put.edu.pl/competition-cig-2017), check for DoomNet
-Joined work with [Bobby DeSimone](https://github.com/desimone)
-
+Joined work with [Bobby DeSimone](https://github.com/desimone)<br>
 [![Doom-net track1, elimination round 2017](images/comp_track1_elimination.png)](https://youtu.be/2Pr0WUMNCvw)
 
 
