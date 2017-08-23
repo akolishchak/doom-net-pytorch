@@ -18,11 +18,11 @@ then
     --episode_discount 0.95 \
     --model $MODEL \
     --vizdoom_config $CONFIG \
-    --skiprate 1 \
+    --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500 \
-    --episode_num 1000
+    --checkpoint_rate 100 \
+    --episode_num 500
 elif [ $COMMAND == 'resume' ]
 then
     python $BASEDIR/main_train.py \
@@ -32,11 +32,11 @@ then
     --model $MODEL \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
-    --skiprate 1 \
+    --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500 \
-    --episode_num 5000
+    --checkpoint_rate 100 \
+    --episode_num 500
 elif [ $COMMAND == 'test' ]
 then
     python $BASEDIR/main_test.py \

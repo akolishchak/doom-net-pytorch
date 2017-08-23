@@ -8,7 +8,6 @@ import time
 from subprocess import Popen
 import numpy as np
 from vizdoom import *
-from doom_server import start_server
 
 
 class NormalizedState:
@@ -141,6 +140,8 @@ class DoomInstance:
             self.variables = state.variables.copy()
             if self.cig:
                 state.variables[2] = 0
+            else:
+                reward += diff.sum()
 
         return state, reward, finished
 

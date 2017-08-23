@@ -8,10 +8,7 @@ import os.path
 from cuda import *
 from aac import AdvantageActorCritic
 from aac_lstm import AdvantageActorCriticLSTM
-from aac_intrinsic import AdvantageActorCriticIntrinsic
-from aac_duel import AdvantageActorCriticDuel
 from aac_noisy import AdvantageActorCriticNoisy
-from aac_big import AdvantageActorCriticBig
 from doom_env import init_doom_env
 from train import train
 from test import test
@@ -25,7 +22,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--model',
         default='aac',
-        choices=('aac', 'aac_lstm', 'aac_intrinsic', 'aac_duel', 'aac_noisy', 'aac_big'),
+        choices=('aac', 'aac_lstm', 'aac_noisy'),
         help='model to work with')
     parser.add_argument('--base_model', default=None, help='path to base model file')
     parser.add_argument('--action_set', default=None, help='model to work with')
@@ -48,10 +45,7 @@ if __name__ == '__main__':
     model_class = {
         'aac': AdvantageActorCritic,
         'aac_lstm': AdvantageActorCriticLSTM,
-        'aac_intrinsic': AdvantageActorCriticIntrinsic,
-        'aac_duel': AdvantageActorCriticDuel,
-        'aac_noisy': AdvantageActorCriticNoisy,
-        'aac_big': AdvantageActorCriticBig
+        'aac_noisy': AdvantageActorCriticNoisy
     }
     model = model_class[args.model](args)
 
