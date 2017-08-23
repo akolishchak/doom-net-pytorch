@@ -148,7 +148,7 @@ class DoomInstance:
     @staticmethod
     def normalize(state):
         screen = state.screen_buffer.astype(np.float32) / 127.5 - 1.
-        screen = screen[None, :, :]
+        #screen = screen[None, :, :]
 
         if state.game_variables is not None:
             variables = state.game_variables
