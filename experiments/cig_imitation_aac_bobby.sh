@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 BASEDIR=$(dirname "$( cd "$( dirname "$0" )" && pwd )")
-BASEDIR=$(dirname "$( cd "$( dirname "$0" )" && pwd )")
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 [train|resume]"
     exit 1
@@ -12,7 +11,7 @@ H5_PATH=~/test/datasets/vizdoom/bobby_cig_map01/flat.h5
 
 if [ $COMMAND == 'train' ]
 then
-    python $BASEDIR/imitation.py \
+    python $BASEDIR/src/imitation.py \
     --h5_path $H5_PATH \
     --batch_size 100 \
     --skiprate 1 \
@@ -21,7 +20,7 @@ then
     --checkpoint_rate 1
 elif [ $COMMAND == 'resume' ]
 then
-    python $BASEDIR/imitation.py \
+    python $BASEDIR/src/imitation.py \
     --h5_path $H5_PATH \
     --batch_size 100 \
     --load $CHECK_POINT \

@@ -19,7 +19,7 @@ BOT_CMD="python $BASEDIR/agent.py --vizdoom_config $BOT_CONFIG --action_set $ACT
 
 if [ $COMMAND == 'train' ]
 then
-    python $BASEDIR/main_train.py \
+    python $BASEDIR/src/main_train.py \
     --episode_size 20 \
     --batch_size 10 \
     --episode_discount 0.95 \
@@ -34,7 +34,7 @@ then
     --checkpoint_rate 100
 elif [ $COMMAND == 'resume' ]
 then
-    python $BASEDIR/main_train.py \
+    python $BASEDIR/src/main_train.py \
     --episode_size 20 \
     --batch_size 10 \
     --episode_discount 0.95 \
@@ -49,7 +49,7 @@ then
     --checkpoint_rate 100
 elif [ $COMMAND == 'test' ]
 then
-    python $BASEDIR/main_test.py \
+    python $BASEDIR/src/main_test.py \
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \

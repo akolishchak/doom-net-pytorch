@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 BASEDIR=$(dirname "$( cd "$( dirname "$0" )" && pwd )")
-BASEDIR=$(dirname "$( cd "$( dirname "$0" )" && pwd )")
 if [ "$#" -ne 1 ]; then
     echo "Usage: $0 [train|resume|test]"
     exit 1
@@ -14,7 +13,7 @@ CONFIG=$BASEDIR/environments/cig.cfg
 
 if [ $COMMAND == 'train' ]
 then
-    python $BASEDIR/main_train.py \
+    python $BASEDIR/src/main_train.py \
     --episode_size 20 \
     --batch_size 20 \
     --episode_discount 0.95 \
@@ -28,7 +27,7 @@ then
     --checkpoint_rate 500
 elif [ $COMMAND == 'resume' ]
 then
-    python $BASEDIR/main_train.py \
+    python $BASEDIR/src/main_train.py \
     --episode_size 20 \
     --batch_size 20 \
     --episode_discount 0.95 \
@@ -42,7 +41,7 @@ then
     --checkpoint_rate 500
 elif [ $COMMAND == 'test' ]
 then
-    python $BASEDIR/main_test.py \
+    python $BASEDIR/src/main_test.py \
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
