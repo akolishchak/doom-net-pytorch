@@ -20,7 +20,7 @@ class EGreedy(StochasticFunction):
             if USE_CUDA:
                 samples = samples.cuda()
         else:
-           _, samples = probs.max(1)
+           _, samples = probs.max(1, keepdim=True)
 
         self.save_for_backward(probs, samples)
         self.mark_non_differentiable(samples)

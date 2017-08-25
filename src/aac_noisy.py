@@ -133,7 +133,7 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
         if self.training:
             action = EGreedy(0)(action)
         else:
-            _, action = action.max(1)
+            _, action = action.max(1, keepdim=True)
             return action, None
 
         # value prediction - critic

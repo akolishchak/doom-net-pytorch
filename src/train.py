@@ -26,7 +26,7 @@ def train(args, model):
     state.screen = torch.Tensor(args.batch_size, *args.screen_size)
     state.variables = torch.Tensor(args.batch_size, args.variable_num)
     reward = torch.Tensor(args.batch_size, 1)
-    terminal = torch.Tensor(args.batch_size)
+    terminal = torch.Tensor(args.batch_size, 1)
     episode_return = torch.zeros(args.batch_size)
 
     games = []
