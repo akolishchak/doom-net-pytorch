@@ -12,7 +12,7 @@ Models:
 #### [Visual Doom AI Competition 2017](http://vizdoom.cs.put.edu.pl/competition-cig-2017) 
 Joint work with [Bobby DeSimone](https://github.com/desimone)
 
-<sub>DoomNet's view is at left in the middle row</sub><br>
+DoomNet's view is at left in the middle row<br>
 [![Doom-net track1, elimination round 2017](images/cig2017-track1.png)](https://youtu.be/3VU6d_5ze8k)
 
 
