@@ -9,9 +9,11 @@ Models:
 
 ### Trained models
 
-#### [Visual Doom AI Competition 2017](http://vizdoom.cs.put.edu.pl/competition-cig-2017), check for DoomNet
-Joint work with [Bobby DeSimone](https://github.com/desimone)<br>
-[![Doom-net track1, elimination round 2017](images/comp_track1_elimination.png)](https://youtu.be/2Pr0WUMNCvw)
+#### [Visual Doom AI Competition 2017](http://vizdoom.cs.put.edu.pl/competition-cig-2017) 
+Joint work with [Bobby DeSimone](https://github.com/desimone)
+
+<sub>DoomNet's view is at left in the middle row</sub><br>
+[![Doom-net track1, elimination round 2017](images/cig2017-track1.png)](https://youtu.be/3VU6d_5ze8k)
 
 
 #### D3 Battle
