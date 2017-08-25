@@ -41,7 +41,7 @@ then
     --checkpoint_rate 500
 elif [ $COMMAND == 'test' ]
 then
-    python $BASEDIR/main_test.py \
+    python $BASEDIR/src/main_test.py \
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
