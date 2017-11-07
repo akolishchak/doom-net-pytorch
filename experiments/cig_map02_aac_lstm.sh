@@ -13,7 +13,8 @@ CONFIG=$BASEDIR/environments/cig2.cfg
 
 if [ $COMMAND == 'train' ]
 then
-    python $BASEDIR/src/main_train.py \
+    python $BASEDIR/src/main.py \
+    --mode train \
     --episode_size 30 \
     --batch_size 20 \
     --episode_discount 0.97 \
@@ -27,7 +28,8 @@ then
     --checkpoint_rate 500
 elif [ $COMMAND == 'resume' ]
 then
-    python $BASEDIR/src/main_train.py \
+    python $BASEDIR/src/main.py \
+    --mode train \
     --episode_size 30 \
     --batch_size 20 \
     --episode_discount 0.97 \
@@ -41,7 +43,8 @@ then
     --checkpoint_rate 500
 elif [ $COMMAND == 'test' ]
 then
-    python $BASEDIR/src/main_test.py \
+    python $BASEDIR/src/main.py \
+    --mode test \
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \

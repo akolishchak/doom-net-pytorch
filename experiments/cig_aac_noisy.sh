@@ -13,7 +13,8 @@ CONFIG=$BASEDIR/environments/cig.cfg
 
 if [ $COMMAND == 'train' ]
 then
-    python $BASEDIR/src/main_train.py \
+    python $BASEDIR/src/main.py \
+    --mode train \
     --episode_size 20 \
     --batch_size 20 \
     --episode_discount 0.95 \
@@ -28,7 +29,8 @@ then
     --episode_num 150000
 elif [ $COMMAND == 'resume' ]
 then
-    python $BASEDIR/src/main_train.py \
+    python $BASEDIR/src/main.py \
+    --mode train \
     --episode_size 20 \
     --batch_size 20 \
     --episode_discount 0.95 \
@@ -43,7 +45,8 @@ then
     --episode_num 150000
 elif [ $COMMAND == 'test' ]
 then
-    python $BASEDIR/src/main_test.py \
+    python $BASEDIR/src/main.py \
+    --mode test \
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \

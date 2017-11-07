@@ -1,0 +1,117 @@
+#
+# aac_base.py, doom-net
+#
+# Created by Andrey Kolishchak on 01/21/17.
+#
+import os
+from multiprocessing.pool import ThreadPool
+import time
+import torch
+import torch.optim as optim
+from doom_instance import *
+from cuda import *
+from model import Model
+
+class AACBase(Model):
+    def __init__(self):
+        super(AACBase, self).__init__()
+
+    def run_train(self, args):
+        print("training...")
+        self.train()
+
+        optimizer = optim.Adam(self.parameters(), lr=args.learning_rate)
+        if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
+            optimizer_dict = torch.load(args.load+'_optimizer.pth')
+            optimizer.load_state_dict(optimizer_dict)
+
+        optimizer.zero_grad()
+
+        state = NormalizedState(screen=None, depth=None, labels=None, variables=None)
+        state.screen = torch.Tensor(args.batch_size, *args.screen_size)
+        state.variables = torch.Tensor(args.batch_size, args.variable_num)
+        reward = torch.Tensor(args.batch_size, 1)
+        terminal = torch.Tensor(args.batch_size, 1)
+        episode_return = torch.zeros(args.batch_size)
+
+        games = []
+        for i in range(args.batch_size):
+            games.append(DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, i, actions=args.action_set, bot_cmd=args.bot_cmd))
+
+        pool = ThreadPool()
+
+        def get_state(game):
+            id = game.get_id()
+            normalized_state = game.get_state_normalized()
+            state.screen[id, :] = torch.from_numpy(normalized_state.screen)
+            state.variables[id, :] = torch.from_numpy(normalized_state.variables)
+
+        pool.map(get_state, games)
+        # start training
+        for episode in range(args.episode_num):
+            batch_time = time.time()
+            for step in range(args.episode_size):
+                # get action
+                action = self.get_action(state)
+                # step and get new state
+                def step_game(game):
+                    id = game.get_id()
+                    step_state, step_reward, finished = game.step_normalized(action[id][0])
+                    normalized_state = game.get_state_normalized()
+                    state.screen[id, :] = torch.from_numpy(normalized_state.screen)
+                    state.variables[id, :] = torch.from_numpy(normalized_state.variables)
+                    reward[id, 0] = step_reward
+                    if finished:
+                        episode_return[id] = float(game.get_episode_return())
+                        # cut rewards from future actions
+                        terminal[id] = 0
+                    else:
+                        terminal[id] = 1
+                pool.map(step_game, games)
+                self.set_reward(reward)
+                self.set_terminal(terminal)
+
+            # update model
+            self.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            if episode % 1 == 0:
+                print("{}: mean_return = {:f}, batch_time = {:.3f}".format(episode, episode_return.mean(), time.time()-batch_time))
+
+            if episode % args.checkpoint_rate == 0:
+                torch.save(self.state_dict(), args.checkpoint_file)
+                torch.save(optimizer.state_dict(), args.checkpoint_file+'_optimizer.pth')
+
+        # terminate games
+        pool.map(lambda game: game.release(), games)
+
+        torch.save(self.state_dict(), args.checkpoint_file)
+        torch.save(optimizer.state_dict(), args.checkpoint_file+'_optimizer.pth')
+
+    def run_test(self, args):
+        print("testing...")
+        self.eval()
+
+        game = DoomInstance(
+            args.vizdoom_config, args.wad_path, args.skiprate, visible=True, actions=args.action_set, bot_cmd=args.bot_cmd)
+        step_state = game.get_state_normalized()
+
+        state = NormalizedState(screen=None, depth=None, labels=None, variables=None)
+        state.screen = torch.Tensor(1, *args.screen_size)
+        state.variables = torch.Tensor(1, args.variable_num)
+
+        while True:
+            # convert state to torch tensors
+            state.screen[0, :] = torch.from_numpy(step_state.screen)
+            state.variables[0, :] = torch.from_numpy(step_state.variables)
+            # compute an action
+            action = self.get_action(state)
+            # render
+            step_state, _, finished = game.step_normalized(action[0][0])
+            #img = step_state.automap.transpose(1, 2, 0)
+            #img = step_state.labels
+            #plt.imsave('map.jpeg', img)
+            if finished:
+                print("episode return: {}".format(game.get_episode_return()))
+                self.set_terminal(torch.zeros(1))

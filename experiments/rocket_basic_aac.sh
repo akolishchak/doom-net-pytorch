@@ -12,7 +12,8 @@ CONFIG=$BASEDIR/environments/rocket_basic.cfg
 
 if [ $COMMAND == 'train' ]
 then
-    python $BASEDIR/src/main_train.py \
+    python $BASEDIR/src/main.py \
+    --mode train \
     --episode_size 20 \
     --batch_size 20 \
     --episode_discount 0.95 \
@@ -21,11 +22,12 @@ then
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500 \
+    --checkpoint_rate 100 \
     --episode_num 500
 elif [ $COMMAND == 'resume' ]
 then
-    python $BASEDIR/src/main_train.py \
+    python $BASEDIR/src/main.py \
+    --mode train \
     --episode_size 20 \
     --batch_size 20 \
     --episode_discount 0.95 \
@@ -35,11 +37,12 @@ then
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500 \
+    --checkpoint_rate 100 \
     --episode_num 5000
 elif [ $COMMAND == 'test' ]
 then
-    python $BASEDIR/src/main_test.py \
+    python $BASEDIR/src/main.py \
+    --mode test \
     --model $MODEL \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \

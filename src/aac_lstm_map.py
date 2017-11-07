@@ -17,20 +17,18 @@ ModelOutput = namedtuple('ModelOutput', ['action', 'value'])
 class BaseModelLSTM(AACBase):
     def __init__(self, in_channels, button_num, variable_num):
         super(BaseModel, self).__init__()
-        self.screen_feature_num = 512
+        self.screen_feature_num = 128
         self.feature_num = self.screen_feature_num
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, stride=2)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
-        self.conv4 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2)
-        self.conv5 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2)
-        self.conv6 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2)
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1), stride=(1, 1))
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(1, 1), stride=(1, 1))
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=1, kernel_size=(1, 1), stride=(1, 1))
 
-        self.screen_features1 = LSTM(512 * 2 * 4, self.screen_feature_num)
+        #self.screen_features1 = nn.LSTMCell(512 * 2 * 4, self.screen_feature_num)
+        self.screen_features1 = LSTM(12 * 16, self.screen_feature_num)
         self.hx = None
         self.cx = None
 
-        layer1_size = 128
+        layer1_size = 64
         self.action1 = nn.Linear(self.screen_feature_num, layer1_size)
         self.action2 = nn.Linear(layer1_size + variable_num, button_num)
 
@@ -40,13 +38,12 @@ class BaseModelLSTM(AACBase):
 
     def forward(self, screen, variables):
         # cnn
-        screen_features = F.relu(self.conv1(screen))
-        screen_features = F.relu(self.conv2(screen_features))
-        screen_features = F.relu(self.conv3(screen_features))
-        screen_features = F.relu(self.conv4(screen_features))
-        screen_features = F.relu(self.conv5(screen_features))
-        screen_features = F.relu(self.conv6(screen_features))
+        screen_features = F.max_pool2d(screen, kernel_size=(20, 20), stride=(20, 20))
+        screen_features = F.selu(self.conv1(screen_features))
+        screen_features = F.selu(self.conv2(screen_features))
+        screen_features = F.selu(self.conv3(screen_features))
         screen_features = screen_features.view(screen_features.size(0), -1)
+
         # lstm
         if self.hx is None:
             self.hx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
@@ -54,7 +51,7 @@ class BaseModelLSTM(AACBase):
         self.hx, self.cx = self.screen_features1(screen_features, (self.hx, self.cx))
 
         # action
-        action = F.relu(self.action1(self.hx))
+        action = F.selu(self.action1(self.hx))
         action = torch.cat([action, variables], 1)
         action = self.action2(action)
         return action
@@ -71,9 +68,9 @@ class BaseModelLSTM(AACBase):
             self.cx = Variable(self.cx.data, volatile=not self.training)
 
 
-class AdvantageActorCriticLSTM(BaseModelLSTM):
+class AdvantageActorCriticLSTMMap(BaseModelLSTM):
     def __init__(self, args):
-        super(AdvantageActorCriticLSTM, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num)
+        super(AdvantageActorCriticLSTMMap, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num)
         if args.base_model is not None:
             # load weights from the base model
             base_model = torch.load(args.base_model)
@@ -95,7 +92,7 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         self.discounts = []
 
     def forward(self, screen, variables):
-        action = super(AdvantageActorCriticLSTM, self).forward(screen, variables)
+        action = super(AdvantageActorCriticLSTMMap, self).forward(screen, variables)
 
         # action
         action = F.softmax(action)
@@ -107,7 +104,7 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
             return action, None
 
         # value prediction - critic
-        value = F.relu(self.value1(self.hx))
+        value = F.selu(self.value1(self.hx))
         value = torch.cat([value, variables], 1)
         value = self.value2(value)
 
@@ -125,7 +122,7 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
 
     def set_terminal(self, terminal):
-        super(AdvantageActorCriticLSTM, self).set_terminal(terminal)
+        super(AdvantageActorCriticLSTMMap, self).set_terminal(terminal)
         self.discounts.append(self.discount * terminal)
 
     def backward(self):

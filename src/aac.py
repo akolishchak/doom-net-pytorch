@@ -8,9 +8,10 @@ import torch.nn.functional as F
 from cuda import *
 from collections import namedtuple
 from egreedy import EGreedy
+from aac_base import AACBase
 
 
-class BaseModel(nn.Module):
+class BaseModel(AACBase):
     def __init__(self, in_channels, button_num, variable_num, frame_num):
         super(BaseModel, self).__init__()
         self.screen_feature_num = 256

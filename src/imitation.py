@@ -12,7 +12,6 @@ from torch.utils.data import Dataset, DataLoader
 from cuda import *
 import argparse
 from doom_instance import *
-from aac_duel import BaseModelDuel
 from aac import BaseModel
 
 class DoomDataset(Dataset):

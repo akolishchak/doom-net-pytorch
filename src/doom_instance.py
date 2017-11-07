@@ -9,6 +9,62 @@ from subprocess import Popen
 import numpy as np
 from vizdoom import *
 
+ammo = [
+    'Backpack',     # Backpack (Increase carrying capacity)
+    'Cell',         # Cell
+    'CellPack',     # Cell Pack
+    'Clip',         # Ammo Clip
+    'ClipBox',      # Box of Bullets
+    'RocketAmmo',   # Rocket
+    'RocketBox',    # Box of Rockets
+    'Shell',        # 4 Shells
+    'ShellBox'      # Box of Shells
+]
+
+enemy = [
+    'Arachnotron',             # Arachnotron
+    'Archvile',                # Arch-vile
+    'BaronOfHell',             # Baron of Hell
+    'HellKnight',              # Hell knight
+    'Cacodemon',               # Cacodemon
+    'Cyberdemon',              # Cyberdemon
+    'Demon',                   # Demon
+    'Spectre',                 # Partially invisible demon
+    'ChaingunGuy',             # Former human commando
+    'DoomImp',                 # Imp
+    'Fatso',                   # Mancubus
+    'LostSoul',                # Lost soul
+    'PainElemental',           # Pain elemental
+    'Revenant',                # Revenant
+    'ShotgunGuy',              # Former human sergeant
+    'SpiderMastermind',        # Spider mastermind
+    'WolfensteinSS',           # Wolfenstein soldier
+    'ZombieMan'                # Former human trooper
+]
+
+health = [
+    'ArmorBonus',              # Armor Helmet
+    'Berserk',                 # Berserk Pack (Full Health+Super Strength)
+    'BlueArmor',               # Heavy Armor
+    'BlurSphere',              # Partial Invisibility
+    'GreenArmor',              # Light Armor
+    'HealthBonus',             # Health Potion
+    'InvulnerabilitySphere',   # Invulnerability
+    'Medikit',                 # Medikit(+25 Health)
+    'Megasphere',              # Megasphere (+200 Health/Armor)
+    'RadSuit',                 # Radiation Suit
+    'Soulsphere',              # Soul Sphere (+100 Health)
+    'Stimpack'                 # Stimpack(+10 Health)
+]
+
+obstacle = [
+    'Column',                  # Mini Tech Light
+    'BurningBarrel',           # Barrel Fire
+    'ExplosiveBarrel',         # Exploding Barrel(Doom)
+    'TechLamp',                # Large Tech Lamp
+    'TechLamp2',               # Small Tech Lamp
+    'TechPillar'               # Tech Column
+]
 
 class NormalizedState:
     def __init__(self, screen, variables=None, depth=None, labels=None, automap=None):
@@ -60,8 +116,8 @@ class DoomInstance:
             self.game.add_game_args("+sv_spawnfarthest 1")
             self.game.add_game_args("+sv_nocrouch 1")
             self.game.add_game_args("+viz_respawn_delay 0")
-            self.game.add_game_args("+viz_nocheat 1")
-            self.game.add_game_args("+viz_debug 0")
+            #self.game.add_game_args("+viz_nocheat 1")
+            #self.game.add_game_args("+viz_debug 0")
             self.game.add_game_args("+timelimit 10.0")
 
         self.variables = None
@@ -146,9 +202,30 @@ class DoomInstance:
         return state, reward, finished
 
     @staticmethod
+    def get_object_channel(label):
+        if label.object_name in obstacle:
+            return 1  # obstacle
+        elif label.object_name in enemy:
+            return 2  # enemy
+        elif label.object_name in health:
+            return 3  # health
+        elif label.object_name in ammo:
+            return 4  # ammo
+
+        return -1  # unknown object
+
+    @staticmethod
     def normalize(state):
-        screen = state.screen_buffer.astype(np.float32) / 127.5 - 1.
-        #screen = screen[None, :, :]
+
+        if state.labels_buffer is None and state.depth_buffer is None:
+            screen = state.screen_buffer.astype(np.float32) / 127.5 - 1.
+        else:
+            screen = np.zeros([5, *state.screen_buffer.shape[1:]])
+            screen[0, :] = (255.0 - state.depth_buffer) / 127.5 - 1.
+            for label in state.labels:
+                channel = DoomInstance.get_object_channel(label)
+                if channel >= 0:
+                    screen[channel, state.labels_buffer == label.value] = 1
 
         if state.game_variables is not None:
             variables = state.game_variables
@@ -209,10 +286,10 @@ class DoomInstance:
         if self.cig:
             self.game.send_game_command("removebots")
             if self.id is not None:
-                for i in range(5):
+                for i in range(20):
                     self.game.send_game_command("addbot")
             else:
-                for i in range(10):
+                for i in range(20):
                     self.game.send_game_command("addbot")
 
     def release(self):

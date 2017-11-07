@@ -1,41 +1,34 @@
 #
-# aac_noisy.py, doom-net
+# aac_map.py, doom-net
 #
 # Created by Andrey Kolishchak on 01/21/17.
-#
 #
 import torch.nn as nn
 import torch.nn.functional as F
 from cuda import *
 from collections import namedtuple
-from noisy_linear import NoisyLinear
 from egreedy import EGreedy
 from aac_base import AACBase
 
 
-class BaseModelNoisy(AACBase):
+class BaseModel(AACBase):
     def __init__(self, in_channels, button_num, variable_num, frame_num):
-        super(BaseModelNoisy, self).__init__()
-        self.screen_feature_num = 256
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, stride=2)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=2)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2)
-        self.conv4 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2)
-        self.conv5 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2)
-        self.conv6 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2)
+        super(BaseModel, self).__init__()
+        self.screen_feature_num = 128
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1), stride=(1, 1))
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(1, 1), stride=(1, 1))
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=1, kernel_size=(1, 1), stride=(1, 1))
 
-        self.screen_features1 = nn.Linear(512 * 2 * 4, self.screen_feature_num)
-        #self.screen_features1 = nn.Linear(128 * 6 * 9, self.screen_feature_num)
-        #self.screen_features1 = nn.Linear(64 * 14 * 19, self.screen_feature_num)
+        self.screen_features1 = nn.Linear(12 * 16, self.screen_feature_num)
 
         self.batch_norm = nn.BatchNorm1d(self.screen_feature_num)
 
-        layer1_size = 128
-        self.action1 = NoisyLinear(self.screen_feature_num, layer1_size)
-        self.action2 = NoisyLinear(layer1_size + variable_num, button_num)
+        layer1_size = 64
+        self.action1 = nn.Linear(self.screen_feature_num, layer1_size)
+        self.action2 = nn.Linear(layer1_size + variable_num, button_num)
 
-        self.value1 = NoisyLinear(self.screen_feature_num, layer1_size)
-        self.value2 = NoisyLinear(layer1_size + variable_num, 1)
+        self.value1 = nn.Linear(self.screen_feature_num, layer1_size)
+        self.value2 = nn.Linear(layer1_size + variable_num, 1)
 
         self.screens = None
         self.frame_num = frame_num
@@ -43,21 +36,19 @@ class BaseModelNoisy(AACBase):
 
     def forward(self, screen, variables):
         # cnn
-        screen_features = F.relu(self.conv1(screen))
-        screen_features = F.relu(self.conv2(screen_features))
-        screen_features = F.relu(self.conv3(screen_features))
-        screen_features = F.relu(self.conv4(screen_features))
-        screen_features = F.relu(self.conv5(screen_features))
-        screen_features = F.relu(self.conv6(screen_features))
+        screen_features = F.max_pool2d(screen, kernel_size=(20, 20), stride=(20, 20))
+        screen_features = F.selu(self.conv1(screen_features))
+        screen_features = F.selu(self.conv2(screen_features))
+        screen_features = F.selu(self.conv3(screen_features))
         screen_features = screen_features.view(screen_features.size(0), -1)
 
         # features
         input = self.screen_features1(screen_features)
         input = self.batch_norm(input)
-        input = F.relu(input)
+        input = F.selu(input)
 
         # action
-        action = F.relu(self.action1(input))
+        action = F.selu(self.action1(input))
         action = torch.cat([action, variables], 1)
         action = self.action2(action)
 
@@ -88,32 +79,17 @@ class BaseModelNoisy(AACBase):
             for idx in range(len(indexes)):
                 self.screens[indexes[idx]] = []
 
-    def sample_noisy_weight(self):
-        self.action1.sample()
-        self.action2.sample()
-        self.value1.sample()
-        self.value2.sample()
-
 
 ModelOutput = namedtuple('ModelOutput', ['action', 'value'])
 
 
-class AdvantageActorCriticNoisy(BaseModelNoisy):
+class AdvantageActorCriticMap(BaseModel):
     def __init__(self, args):
-        super(AdvantageActorCriticNoisy, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num, args.frame_num)
+        super(AdvantageActorCriticMap, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num, args.frame_num)
         if args.base_model is not None:
             # load weights from the base model
             base_model = torch.load(args.base_model)
-            self.conv1.load_state_dict(base_model.conv1.state_dict())
-            self.conv2.load_state_dict(base_model.conv2.state_dict())
-            self.conv3.load_state_dict(base_model.conv3.state_dict())
-            self.conv4.load_state_dict(base_model.conv4.state_dict())
-            self.conv5.load_state_dict(base_model.conv5.state_dict())
-            self.conv6.load_state_dict(base_model.conv6.state_dict())
-            self.screen_features1.load_state_dict(base_model.screen_features1.state_dict())
-            self.batch_norm.load_state_dict(base_model.batch_norm.state_dict())
-            self.action1.weight_mu.data = base_model.action1.weight.data.clone()
-            self.action2.weight_mu.data = base_model.action2.weight.data.clone()
+            self.load_state_dict(base_model.state_dict())
             del base_model
 
         self.discount = args.episode_discount
@@ -125,20 +101,20 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
         self.outputs = []
         self.rewards = []
         self.discounts = []
-        self.sample_noisy_weight()
 
     def forward(self, screen, variables):
-        action, input = super(AdvantageActorCriticNoisy, self).forward(screen, variables)
+        action, input = super(AdvantageActorCriticMap, self).forward(screen, variables)
 
         action = F.softmax(action)
         if self.training:
-            action = EGreedy(0)(action)
+            #action = action.multinomial()
+            action = EGreedy(0.1)(action)
         else:
             _, action = action.max(1, keepdim=True)
             return action, None
 
         # value prediction - critic
-        value = F.relu(self.value1(input))
+        value = F.selu(self.value1(input))
         value = torch.cat([value, variables], 1)
         value = self.value2(value)
 
@@ -154,7 +130,7 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
         self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
 
     def set_terminal(self, terminal):
-        super(AdvantageActorCriticNoisy, self).set_terminal(terminal)
+        super(AdvantageActorCriticMap, self).set_terminal(terminal)
         self.discounts.append(self.discount * terminal)
 
     def backward(self):

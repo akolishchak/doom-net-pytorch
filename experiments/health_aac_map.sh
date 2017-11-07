@@ -6,10 +6,9 @@ if [ "$#" -ne 1 ]; then
 fi
 
 COMMAND="$1"
-MODEL=aac
-CHECK_POINT=$BASEDIR/checkpoints/cig_map02_aac_20_95_skip4_cp.pth
-ACTION_SET=$BASEDIR/actions/action_set_cig2_speed.npy
-CONFIG=$BASEDIR/environments/cig2.cfg
+MODEL=aac_map
+CHECK_POINT=$BASEDIR/checkpoints/basic_aac_map_cp.pth
+CONFIG=$BASEDIR/environments/health_gathering.cfg
 
 if [ $COMMAND == 'train' ]
 then
@@ -19,13 +18,12 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
-    --action_set $ACTION_SET \
-    --base_model $BASEDIR/trained_models/cig_map02_imitation_model_aac.pth \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500
+    --checkpoint_rate 100 \
+    --episode_num 5000
 elif [ $COMMAND == 'resume' ]
 then
     python $BASEDIR/src/main.py \
@@ -34,22 +32,21 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
-    --action_set $ACTION_SET \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500
+    --checkpoint_rate 100 \
+    --episode_num 5000
 elif [ $COMMAND == 'test' ]
 then
     python $BASEDIR/src/main.py \
     --mode test \
     --model $MODEL \
-    --action_set $ACTION_SET \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
-    --skiprate 4 \
+    --skiprate 1 \
     --frame_num 1
 else
     echo "'$COMMAND' is unknown command."
