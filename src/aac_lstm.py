@@ -12,11 +12,11 @@ from egreedy import EGreedy
 from aac_base import AACBase
 
 
-ModelOutput = namedtuple('ModelOutput', ['action', 'value'])
+ModelOutput = namedtuple('ModelOutput', ['log_action', 'value'])
 
 class BaseModelLSTM(AACBase):
     def __init__(self, in_channels, button_num, variable_num):
-        super(BaseModel, self).__init__()
+        super(BaseModelLSTM, self).__init__()
         self.screen_feature_num = 512
         self.feature_num = self.screen_feature_num
         self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=16, kernel_size=3, stride=2)
@@ -98,13 +98,13 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         action = super(AdvantageActorCriticLSTM, self).forward(screen, variables)
 
         # action
-        action = F.softmax(action)
-        if self.training:
-            #action = action.multinomial()
-            action = EGreedy(0.10)(action)
-        else:
+        action = F.softmax(action, dim=1)
+        if not self.training:
             _, action = action.max(1, keepdim=True)
             return action, None
+
+        distribution = EGreedy(action, 0.1)
+        action = distribution.sample()
 
         # value prediction - critic
         value = F.relu(self.value1(self.hx))
@@ -112,7 +112,7 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         value = self.value2(value)
 
         # save output for backpro
-        self.outputs.append(ModelOutput(action, value))
+        self.outputs.append(ModelOutput(distribution.log_prob(action), value))
         return action, value
 
     def get_action(self, state):
@@ -142,15 +142,15 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
             returns = returns.cuda()
         #
         # calculate losses
-        value_loss = 0
+        loss = 0
         for i in range(len(self.outputs) - 1):
-            self.outputs[i].action.reinforce(returns[i] - self.outputs[i].value.data)
-            value_loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
+            advantage = Variable(returns[i] - self.outputs[i].value.data)
+            loss += (-self.outputs[i].log_action * advantage).sum()
+            loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
         #
-        # backpro all variables at once
-        variables = [value_loss] + [output.action for output in self.outputs[:-1]]
-        gradients = [torch.ones(1).cuda() if USE_CUDA else torch.ones(1)] + [None for _ in self.outputs[:-1]]
-        autograd.backward(variables, gradients)
+        # backpro
+        loss.backward()
+
         # reset state
         self.reset()
 

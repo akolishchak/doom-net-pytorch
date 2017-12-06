@@ -80,7 +80,7 @@ class BaseModel(AACBase):
                 self.screens[indexes[idx]] = []
 
 
-ModelOutput = namedtuple('ModelOutput', ['action', 'value'])
+ModelOutput = namedtuple('ModelOutput', ['log_action', 'value'])
 
 
 class AdvantageActorCriticMap(BaseModel):
@@ -105,13 +105,13 @@ class AdvantageActorCriticMap(BaseModel):
     def forward(self, screen, variables):
         action, input = super(AdvantageActorCriticMap, self).forward(screen, variables)
 
-        action = F.softmax(action)
-        if self.training:
-            #action = action.multinomial()
-            action = EGreedy(0.1)(action)
-        else:
+        action = F.softmax(action, dim=1)
+        if not self.training:
             _, action = action.max(1, keepdim=True)
             return action, None
+
+        distribution = EGreedy(action, 0.1)
+        action = distribution.sample()
 
         # value prediction - critic
         value = F.selu(self.value1(input))
@@ -119,7 +119,7 @@ class AdvantageActorCriticMap(BaseModel):
         value = self.value2(value)
 
         # save output for backpro
-        self.outputs.append(ModelOutput(action, value))
+        self.outputs.append(ModelOutput(distribution.log_prob(action), value))
         return action, value
 
     def get_action(self, state):
@@ -149,14 +149,14 @@ class AdvantageActorCriticMap(BaseModel):
             returns = returns.cuda()
         #
         # calculate losses
-        value_loss = 0
+        loss = 0
         for i in range(len(self.outputs) - 1):
-            self.outputs[i].action.reinforce(returns[i] - self.outputs[i].value.data)
-            value_loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
+            advantage = Variable(returns[i] - self.outputs[i].value.data)
+            loss += (-self.outputs[i].log_action * advantage).sum()
+            loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
         #
-        # backpro all variables at once
-        variables = [value_loss] + [output.action for output in self.outputs[:-1]]
-        gradients = [torch.ones(1).cuda() if USE_CUDA else torch.ones(1)] + [None for _ in self.outputs[:-1]]
-        autograd.backward(variables, gradients)
+        # backpro
+        loss.backward()
+
         # reset state
         self.reset()
