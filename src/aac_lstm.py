@@ -8,8 +8,8 @@ import torch.nn.functional as F
 from cuda import *
 from collections import namedtuple
 from lstm import LSTM
-from egreedy import EGreedy
 from aac_base import AACBase
+import random
 
 
 ModelOutput = namedtuple('ModelOutput', ['log_action', 'value'])
@@ -95,16 +95,20 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         self.discounts = []
 
     def forward(self, screen, variables):
-        action = super(AdvantageActorCriticLSTM, self).forward(screen, variables)
+        action_prob = super(AdvantageActorCriticLSTM, self).forward(screen, variables)
 
-        # action
-        action = F.softmax(action, dim=1)
         if not self.training:
-            _, action = action.max(1, keepdim=True)
+            _, action = action_prob.max(1, keepdim=True)
             return action, None
 
-        distribution = EGreedy(action, 0.1)
-        action = distribution.sample()
+        # greedy actions
+        if random.random() < 0.1:
+            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1))
+            action = Variable(action)
+            if USE_CUDA:
+                action = action.cuda()
+        else:
+            _, action = action_prob.max(1, keepdim=True)
 
         # value prediction - critic
         value = F.relu(self.value1(self.hx))
@@ -112,7 +116,8 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         value = self.value2(value)
 
         # save output for backpro
-        self.outputs.append(ModelOutput(distribution.log_prob(action), value))
+        action_prob = F.log_softmax(action_prob, dim=1)
+        self.outputs.append(ModelOutput(action_prob.gather(-1, action), value))
         return action, value
 
     def get_action(self, state):
@@ -142,13 +147,15 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
             returns = returns.cuda()
         #
         # calculate losses
-        loss = 0
-        for i in range(len(self.outputs) - 1):
+        policy_loss = 0
+        value_loss = 0
+        steps = len(self.outputs) - 1
+        for i in range(steps):
             advantage = Variable(returns[i] - self.outputs[i].value.data)
-            loss += (-self.outputs[i].log_action * advantage).sum()
-            loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
-        #
-        # backpro
+            policy_loss += -self.outputs[i].log_action * advantage
+            value_loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
+
+        loss = policy_loss.mean() / steps + value_loss / steps
         loss.backward()
 
         # reset state
