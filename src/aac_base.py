@@ -78,21 +78,18 @@ class AACBase(Model):
 
             # update model
             self.backward()
-            """
             grads = []
             weights = []
             for p in self.parameters():
-                grads.append(p.grad.data.view(-1))
-                weights.append(p.data.view(-1))
+                if p.grad is not None:
+                    grads.append(p.grad.data.view(-1))
+                    weights.append(p.data.view(-1))
             grads = torch.cat(grads, 0)
             weights = torch.cat(weights, 0)
             grads_norm = grads.norm()
             weights_norm = weights.norm()
 
             assert grads_norm == grads_norm
-            """
-            weights_norm = 0
-            grads_norm = 0
 
             optimizer.step()
             optimizer.zero_grad()
@@ -128,33 +125,8 @@ class AACBase(Model):
             state.variables[0, :] = torch.from_numpy(step_state.variables)
             # compute an action
             action = self.get_action(state)
-            print(action[0][0])
             # render
             step_state, _, finished = game.step_normalized(action[0][0])
-            #img = step_state.automap.transpose(1, 2, 0)
-            #plt.imsave('map.png', img)
-            '''
-            img = step_state.depth
-            plt.imsave('depth.png', img, cmap=cm.gray)
-            plan = np.ndarray(shape=(240, 320, 3), dtype=float)
-            plan[:] = 0
-            for i in range(320):
-                angle = math.radians(135.0-i*90.0/320.0)
-                distance = (step_state.screen[0, 120:140, i].min() + 1)*127.5
-                x = int(160 + math.cos(angle)*distance)
-                y = int(219 - math.fabs(math.sin(angle)*distance))
-                if x >= 0 and x < 320 and y >= 0 and y < 240:
-                    channel = 0
-                    if step_state.screen[2, 120:140, i].max() == 1:
-                        channel = 2
-                    elif step_state.screen[3, 120:140, i].max() == 1:
-                        channel = 1
-                    plan[y, x, channel] = 1
-            plt.imsave('depth-plan.png', plan)
-            '''
-            img = step_state.screen[0:3, :]
-            img = img.transpose(1, 2, 0)
-            plt.imsave('depth-plan.png', img)
             if finished:
                 print("episode return: {}".format(game.get_episode_return()))
                 self.set_terminal(torch.zeros(1))
