@@ -1,5 +1,5 @@
 #
-# aac_lstm.py, doom-net
+# aac_depth.py, doom-net
 #
 # Created by Andrey Kolishchak on 01/21/17.
 #
@@ -7,33 +7,33 @@ import torch.nn as nn
 import torch.nn.functional as F
 from cuda import *
 from collections import namedtuple
-from lstm import LSTM
 from aac_base import AACBase
 import random
 
 
-ModelOutput = namedtuple('ModelOutput', ['log_action', 'value'])
-
-class BaseModelLSTM(AACBase):
-    def __init__(self, in_channels, button_num, variable_num):
-        super(BaseModelLSTM, self).__init__()
+class BaseModel(AACBase):
+    def __init__(self, in_channels, button_num, variable_num, frame_num):
+        super(BaseModel, self).__init__()
         self.screen_feature_num = 128
-        self.feature_num = self.screen_feature_num
         self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1), stride=(1, 1))
         self.conv2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(1, 1), stride=(1, 1))
         self.conv3 = nn.Conv2d(in_channels=32, out_channels=1, kernel_size=(1, 1), stride=(1, 1))
 
-        #self.screen_features1 = nn.LSTMCell(512 * 2 * 4, self.screen_feature_num)
-        self.screen_features1 = LSTM(12 * 16, self.screen_feature_num)
-        self.hx = None
-        self.cx = None
+        self.screen_features1 = nn.Linear(12 * 16, self.screen_feature_num)
+
+        self.batch_norm = nn.BatchNorm1d(self.screen_feature_num)
 
         layer1_size = 64
         self.action1 = nn.Linear(self.screen_feature_num, layer1_size)
         self.action2 = nn.Linear(layer1_size + variable_num, button_num)
+        self.batch_norm_action = nn.BatchNorm1d(layer1_size + variable_num)
 
         self.value1 = nn.Linear(self.screen_feature_num, layer1_size)
         self.value2 = nn.Linear(layer1_size + variable_num, 1)
+        self.batch_norm_value = nn.BatchNorm1d(layer1_size + variable_num)
+
+        self.screens = None
+        self.frame_num = frame_num
 
 
     def forward(self, screen, variables):
@@ -44,56 +44,69 @@ class BaseModelLSTM(AACBase):
         screen_features = F.selu(self.conv3(screen_features))
         screen_features = screen_features.view(screen_features.size(0), -1)
 
-        # lstm
-        if self.hx is None:
-            self.hx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
-            self.cx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
-        self.hx, self.cx = self.screen_features1(screen_features, (self.hx, self.cx))
+        # features
+        input = self.screen_features1(screen_features)
+        input = self.batch_norm(input)
+        input = F.selu(input)
 
         # action
-        action = F.selu(self.action1(self.hx))
+        action = F.selu(self.action1(input))
         action = torch.cat([action, variables], 1)
+        action = self.batch_norm_action(action)
         action = self.action2(action)
-        return action
+
+        return action, input
+
+    def transform_input(self, screen, variables):
+        screen_batch = []
+        if self.frame_num > 1:
+            if self.screens is None:
+                self.screens = [[]] * len(screen)
+            for idx, screens in enumerate(self.screens):
+                if len(screens) >= self.frame_num:
+                    screens.pop(0)
+                screens.append(screen[idx])
+                if len(screens) == 1:
+                    for i in range(self.frame_num - 1):
+                        screens.append(screen[idx])
+                screen_batch.append(torch.cat(screens, 0))
+            screen = torch.stack(screen_batch)
+
+        screen = Variable(screen, volatile=not self.training)
+        variables = Variable(variables / 100, volatile=not self.training)
+        return screen, variables
 
     def set_terminal(self, terminal):
-        terminal = Variable(terminal.view(-1, 1).expand_as(self.cx))
-        self.cx = self.cx * terminal
-        self.hx = self.hx * terminal
-
-    def reset(self):
-        if self.hx is not None:
-            self.hx = Variable(self.hx.data, volatile=not self.training)
-        if self.cx is not None:
-            self.cx = Variable(self.cx.data, volatile=not self.training)
+        if self.screens is not None:
+            indexes = torch.nonzero(terminal == 0).squeeze()
+            for idx in range(len(indexes)):
+                self.screens[indexes[idx]] = []
 
 
-class AdvantageActorCriticLSTMMap(BaseModelLSTM):
+ModelOutput = namedtuple('ModelOutput', ['log_action', 'value'])
+
+
+class AdvantageActorCriticDepth(BaseModel):
     def __init__(self, args):
-        super(AdvantageActorCriticLSTMMap, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num)
+        super(AdvantageActorCriticDepth, self).__init__(args.screen_size[0]*args.frame_num, args.button_num, args.variable_num, args.frame_num)
         if args.base_model is not None:
             # load weights from the base model
             base_model = torch.load(args.base_model)
             self.load_state_dict(base_model.state_dict())
+            del base_model
 
         self.discount = args.episode_discount
-        self.value = nn.Linear(self.feature_num, 1)
         self.outputs = []
         self.rewards = []
         self.discounts = []
 
     def reset(self):
-        if self.hx is not None:
-            self.hx = Variable(self.hx.data)
-        if self.cx is not None:
-            self.cx = Variable(self.cx.data)
         self.outputs = []
         self.rewards = []
         self.discounts = []
 
     def forward(self, screen, variables):
-        action_prob = super(AdvantageActorCriticLSTMMap, self).forward(screen, variables)
-
+        action_prob, input = super(AdvantageActorCriticDepth, self).forward(screen, variables)
         if not self.training:
             _, action = action_prob.max(1, keepdim=True)
             return action, None
@@ -108,8 +121,9 @@ class AdvantageActorCriticLSTMMap(BaseModelLSTM):
            _, action = action_prob.max(1, keepdim=True)
 
         # value prediction - critic
-        value = F.selu(self.value1(self.hx))
+        value = F.selu(self.value1(input))
         value = torch.cat([value, variables], 1)
+        value = self.batch_norm_value(value)
         value = self.value2(value)
 
         # save output for backpro
@@ -118,20 +132,20 @@ class AdvantageActorCriticLSTMMap(BaseModelLSTM):
         return action, value
 
     def get_action(self, state):
-        screen = Variable(state.screen, volatile=not self.training)
-        variables = Variable(state.variables / 100, volatile=not self.training)
-        action, _ = self.forward(screen, variables)
+        action, _ = self.forward(*self.transform_input(state.screen, state.variables))
         return action.data
 
     def set_reward(self, reward):
         self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
 
     def set_terminal(self, terminal):
-        super(AdvantageActorCriticLSTMMap, self).set_terminal(terminal)
+        super(AdvantageActorCriticDepth, self).set_terminal(terminal)
         self.discounts.append(self.discount * terminal)
 
     def backward(self):
         #
+        # calculate step returns in reverse order
+        #rewards = torch.stack(self.rewards, dim=0)
         rewards = self.rewards
 
         returns = torch.Tensor(len(rewards) - 1, *self.outputs[-1].value.data.size())
@@ -156,9 +170,8 @@ class AdvantageActorCriticLSTMMap(BaseModelLSTM):
         for param in self.parameters():
             weights_l2 += param.norm(2)
 
-        loss = policy_loss.mean() / steps + value_loss / steps
+        loss = policy_loss.mean() / steps + value_loss / steps + 0.00001 * weights_l2
         loss.backward()
 
         # reset state
         self.reset()
-

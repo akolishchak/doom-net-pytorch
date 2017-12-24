@@ -17,12 +17,13 @@ if __name__ == '__main__':
     parser.add_argument('--episode_size', type=int, default=20, help='number of steps in an episode')
     parser.add_argument('--batch_size', type=int, default=20, help='number of game instances running in parallel')
     parser.add_argument('--episode_num', type=int, default=150000, help='number of episodes for training')
+    parser.add_argument('--epoch_game_steps', type=int, default=10000, help='number of steps per epoch')
     parser.add_argument('--episode_discount', type=float, default=0.95, help='number of episodes for training')
     parser.add_argument('--seed', type=int, default=1, help='seed value')
     parser.add_argument(
         '--model',
         default='aac',
-        choices=('aac', 'aac_lstm', 'aac_noisy', 'aac_map', 'aac_lstm_map'),
+        choices=('aac', 'aac_lstm', 'aac_noisy', 'aac_depth', 'aac_map', 'mb_map'),
         help='model to work with')
     parser.add_argument('--base_model', default=None, help='path to base model file')
     parser.add_argument('--action_set', default=None, help='model to work with')
@@ -35,6 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_file', default=None, help='check point file name')
     parser.add_argument('--checkpoint_rate', type=int, default=500, help='number of batches per checkpoit')
     parser.add_argument('--bot_cmd', default=None, help='command to launch a bot')
+    parser.add_argument('--h5_path', default=None, help='hd5 files path')
     args = parser.parse_args()
     print(args)
     init_doom_env(args)
