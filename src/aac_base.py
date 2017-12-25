@@ -61,8 +61,7 @@ class AACBase(Model):
                 # step and get new state
                 def step_game(game):
                     id = game.get_id()
-                    step_state, step_reward, finished = game.step_normalized(action[id][0])
-                    normalized_state = game.get_state_normalized()
+                    normalized_state, step_reward, finished = game.step_normalized(action[id][0])
                     state.screen[id, :] = torch.from_numpy(normalized_state.screen)
                     state.variables[id, :] = torch.from_numpy(normalized_state.variables)
                     reward[id, 0] = step_reward
@@ -78,6 +77,7 @@ class AACBase(Model):
 
             # update model
             self.backward()
+            '''
             grads = []
             weights = []
             for p in self.parameters():
@@ -90,6 +90,9 @@ class AACBase(Model):
             weights_norm = weights.norm()
 
             assert grads_norm == grads_norm
+            '''
+            grads_norm = 0
+            weights_norm = 0
 
             optimizer.step()
             optimizer.zero_grad()
@@ -127,6 +130,9 @@ class AACBase(Model):
             action = self.get_action(state)
             # render
             step_state, _, finished = game.step_normalized(action[0][0])
+            #img = step_state.screen[0:3, :]
+            #img = img.transpose(1, 2, 0)
+            #plt.imsave('depth-plan.png', img)
             if finished:
                 print("episode return: {}".format(game.get_episode_return()))
                 self.set_terminal(torch.zeros(1))
