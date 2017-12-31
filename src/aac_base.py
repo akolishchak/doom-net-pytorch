@@ -77,7 +77,7 @@ class AACBase(Model):
 
             # update model
             self.backward()
-            '''
+
             grads = []
             weights = []
             for p in self.parameters():
@@ -90,9 +90,6 @@ class AACBase(Model):
             weights_norm = weights.norm()
 
             assert grads_norm == grads_norm
-            '''
-            grads_norm = 0
-            weights_norm = 0
 
             optimizer.step()
             optimizer.zero_grad()
