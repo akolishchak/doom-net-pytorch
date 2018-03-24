@@ -11,15 +11,44 @@ from aac_base import AACBase
 import random
 
 
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.relu(inplace=True)
+        self.conv2 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.residual = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, bias=False)
+        self.residual_bn = nn.BatchNorm2d(out_channels)
+
+    def forward(self, x):
+        output = self.conv1(x)
+        output = self.bn1(output)
+        output = self.relu(output)
+        output = self.conv2(output)
+        output = self.bn2(output)
+
+        residual = self.residual(x)
+        residual = self.residual_bn(residual)
+
+        output += residual
+        output = self.relu(output)
+        return output
+
+
 class BaseModel(AACBase):
     def __init__(self, in_channels, button_num, variable_num, frame_num):
         super(BaseModel, self).__init__()
-        self.screen_feature_num = 128
-        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1), stride=(1, 1))
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(1, 1), stride=(1, 1))
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=1, kernel_size=(1, 1), stride=(1, 1))
+        self.screen_feature_num = 256
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=32, kernel_size=3, stride=1)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=2, dilation=8)
+        self.conv4 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, dilation=16)
+        self.conv5 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, dilation=1)
 
-        self.screen_features1 = nn.Linear(12 * 16, self.screen_feature_num)
+        #self.screen_features1 = nn.Linear(13 * 18 * 128, self.screen_feature_num)
+        self.screen_features1 = nn.Linear(5 * 21 * 128, self.screen_feature_num)
 
         self.batch_norm = nn.BatchNorm1d(self.screen_feature_num)
 
@@ -38,19 +67,20 @@ class BaseModel(AACBase):
 
     def forward(self, screen, variables):
         # cnn
-        screen_features = F.max_pool2d(screen, kernel_size=(20, 20), stride=(20, 20))
-        screen_features = F.selu(self.conv1(screen_features))
-        screen_features = F.selu(self.conv2(screen_features))
-        screen_features = F.selu(self.conv3(screen_features))
+        screen_features = F.relu(self.conv1(screen))
+        screen_features = F.relu(self.conv2(screen_features))
+        screen_features = F.relu(self.conv3(screen_features))
+        screen_features = F.relu(self.conv4(screen_features))
+        screen_features = F.relu(self.conv5(screen_features))
         screen_features = screen_features.view(screen_features.size(0), -1)
 
         # features
         input = self.screen_features1(screen_features)
         input = self.batch_norm(input)
-        input = F.selu(input)
+        input = F.relu(input)
 
         # action
-        action = F.selu(self.action1(input))
+        action = F.relu(self.action1(input))
         action = torch.cat([action, variables], 1)
         action = self.batch_norm_action(action)
         action = self.action2(action)
@@ -78,7 +108,7 @@ class BaseModel(AACBase):
 
     def set_terminal(self, terminal):
         if self.screens is not None:
-            indexes = torch.nonzero(terminal == 0).squeeze()
+            indexes = torch.nonzero(terminal.view(-1) == 0).squeeze()
             for idx in range(len(indexes)):
                 self.screens[indexes[idx]] = []
 
@@ -121,7 +151,7 @@ class AdvantageActorCriticMap(BaseModel):
            _, action = action_prob.max(1, keepdim=True)
 
         # value prediction - critic
-        value = F.selu(self.value1(input))
+        value = F.relu(self.value1(input))
         value = torch.cat([value, variables], 1)
         value = self.batch_norm_value(value)
         value = self.value2(value)
@@ -168,6 +198,7 @@ class AdvantageActorCriticMap(BaseModel):
 
         weights_l2 = 0
         for param in self.parameters():
+            # TODO: check for non-grad params
             weights_l2 += param.norm(2)
 
         loss = policy_loss.mean() / steps + value_loss / steps + 0.00001 * weights_l2

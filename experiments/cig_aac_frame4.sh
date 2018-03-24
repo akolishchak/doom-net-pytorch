@@ -10,6 +10,7 @@ MODEL=aac
 CHECK_POINT=$BASEDIR/checkpoints/cig_aac_farmes4_30_97_skip2_cp.pth
 ACTION_SET=$BASEDIR/actions/action_set_speed_shot_backward_right.npy
 CONFIG=$BASEDIR/environments/cig.cfg
+INSTANCE=cig
 
 if [ $COMMAND == 'train' ]
 then
@@ -21,6 +22,7 @@ then
     --model $MODEL \
     --action_set $ACTION_SET \
     --base_model $BASEDIR/trained_models/cig_map01_imitation_model_frames4.pth \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 2 \
     --frame_num 4 \
@@ -36,6 +38,7 @@ then
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 2 \
     --frame_num 4 \
@@ -48,6 +51,7 @@ then
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 2 \
     --frame_num 4

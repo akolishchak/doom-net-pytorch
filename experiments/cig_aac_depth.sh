@@ -10,6 +10,7 @@ MODEL=aac_depth
 CHECK_POINT=$BASEDIR/checkpoints/cig_aac_depth_20_95_skip4_cp.pth
 ACTION_SET=$BASEDIR/actions/action_set_speed_shot_backward_right.npy
 CONFIG=$BASEDIR/environments/cig.cfg
+INSTANCE=cig
 
 if [ $COMMAND == 'train' ]
 then
@@ -20,6 +21,7 @@ then
     --episode_discount 0.95 \
     --model $MODEL \
     --action_set $ACTION_SET \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
@@ -35,6 +37,7 @@ then
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
@@ -47,6 +50,7 @@ then
     --model $MODEL \
     --action_set $ACTION_SET \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1

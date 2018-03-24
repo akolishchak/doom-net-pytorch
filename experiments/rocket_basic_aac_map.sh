@@ -18,6 +18,7 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
+    --doom_instance basic \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
@@ -32,6 +33,7 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
+    --doom_instance basic \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
@@ -45,6 +47,7 @@ then
     --mode test \
     --model $MODEL \
     --load $CHECK_POINT \
+    --doom_instance basic \
     --vizdoom_config $CONFIG \
     --skiprate 1 \
     --frame_num 1

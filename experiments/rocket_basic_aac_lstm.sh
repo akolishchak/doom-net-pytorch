@@ -9,6 +9,7 @@ COMMAND="$1"
 MODEL=aac_lstm
 CHECK_POINT=$BASEDIR/checkpoints/rocket_basic_aac_cp.pth
 CONFIG=$BASEDIR/environments/rocket_basic.cfg
+INSTANCE=basic
 
 if [ $COMMAND == 'train' ]
 then
@@ -18,6 +19,7 @@ then
     --batch_size 20 \
     --episode_discount 0.9875 \
     --model $MODEL \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 1 \
     --frame_num 1 \
@@ -32,6 +34,7 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
+    --doom_instance $INSTANCE \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
@@ -45,6 +48,7 @@ then
     --mode test \
     --model $MODEL \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 1 \
     --frame_num 1

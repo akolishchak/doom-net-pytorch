@@ -3,162 +3,74 @@
 #
 # Created by Andrey Kolishchak on 01/21/17.
 #
-import datetime
-import time
-from subprocess import Popen
-import numpy as np
 from vizdoom import *
-
-ammo = [
-    'Backpack',     # Backpack (Increase carrying capacity)
-    'Cell',         # Cell
-    'CellPack',     # Cell Pack
-    'Clip',         # Ammo Clip
-    'ClipBox',      # Box of Bullets
-    'RocketAmmo',   # Rocket
-    'RocketBox',    # Box of Rockets
-    'Shell',        # 4 Shells
-    'ShellBox'      # Box of Shells
-]
-
-enemy = [
-    'Arachnotron',             # Arachnotron
-    'Archvile',                # Arch-vile
-    'BaronOfHell',             # Baron of Hell
-    'HellKnight',              # Hell knight
-    'Cacodemon',               # Cacodemon
-    'Cyberdemon',              # Cyberdemon
-    'Demon',                   # Demon
-    'Spectre',                 # Partially invisible demon
-    'ChaingunGuy',             # Former human commando
-    'DoomImp',                 # Imp
-    'Fatso',                   # Mancubus
-    'LostSoul',                # Lost soul
-    'PainElemental',           # Pain elemental
-    'Revenant',                # Revenant
-    'ShotgunGuy',              # Former human sergeant
-    'SpiderMastermind',        # Spider mastermind
-    'WolfensteinSS',           # Wolfenstein soldier
-    'ZombieMan'                # Former human trooper
-]
-
-health = [
-    'ArmorBonus',              # Armor Helmet
-    'Berserk',                 # Berserk Pack (Full Health+Super Strength)
-    'BlueArmor',               # Heavy Armor
-    'BlurSphere',              # Partial Invisibility
-    'GreenArmor',              # Light Armor
-    'HealthBonus',             # Health Potion
-    'InvulnerabilitySphere',   # Invulnerability
-    'Medikit',                 # Medikit(+25 Health)
-    'Megasphere',              # Megasphere (+200 Health/Armor)
-    'RadSuit',                 # Radiation Suit
-    'Soulsphere',              # Soul Sphere (+100 Health)
-    'Stimpack'                 # Stimpack(+10 Health)
-]
-
-obstacle = [
-    'Column',                  # Mini Tech Light
-    'BurningBarrel',           # Barrel Fire
-    'ExplosiveBarrel',         # Exploding Barrel(Doom)
-    'TechLamp',                # Large Tech Lamp
-    'TechLamp2',               # Small Tech Lamp
-    'TechPillar'               # Tech Column
-]
-
-class NormalizedState:
-    def __init__(self, screen, variables=None, depth=None, labels=None, automap=None):
-        self.screen = screen
-        self.depth = depth
-        self.labels = labels
-        self.variables = variables
-        self.labels = labels
-        self.automap = automap
+import numpy as np
 
 
 class DoomInstance:
-    def __init__(self, config, wad, skiprate, id=None, visible=False, actions=None, bot_cmd=None, color=0):
+    def __init__(self, config, wad, skiprate, visible=False, mode=Mode.PLAYER, actions=None, id=None, args=None):
         self.game = DoomGame()
         self.game.set_doom_game_path(wad)
         self.game.load_config(config)
-        self.game.set_mode(Mode.PLAYER)
+        self.game.set_mode(mode)
         self.visible = visible
-        self.is_server = bot_cmd is not None
         self.episode_return = 0
         self.skiprate = skiprate
         self.id = id
-        self.port = 55255 + id if id is not None else 0
-        self.bots_num = 0
-        self.bot_cmd = bot_cmd
 
-        # game args https://zdoom.org/wiki/Command_line_parameters
-        self.game.add_game_args("+name DoomNet +colorset {}".format(color))
         if self.visible:
-            print("visible set to true")
             self.game.set_window_visible(True)
             self.game.set_sound_enabled(True)
-            self.game.set_mode(Mode.ASYNC_PLAYER)
-        self.cig = 'cig' in config
-        if self.cig:
-            if self.is_server:
-                self.bots_num = 2
-                for i in range(self.bots_num):
-                    print(id, "==START BOT==", i)
-                    Popen('{} --color {} --port {}'.format(self.bot_cmd, 2, self.port), shell=True)
 
-                self.game.add_game_args("-port {}".format(self.port))
+        if args is not None:
+            self.game.add_game_args(args)
 
-            self.game.add_game_args("-host {}".format(self.bots_num+1))
-            self.game.add_game_args("-deathmatch")
-            self.game.add_game_args("+sv_forcerespawn 0")
-            self.game.add_game_args("+sv_noautoaim 1")
-            self.game.add_game_args("+sv_respawnprotect 1")
-            self.game.add_game_args("+sv_spawnfarthest 1")
-            self.game.add_game_args("+sv_nocrouch 1")
-            self.game.add_game_args("+viz_respawn_delay 0")
-            #self.game.add_game_args("+viz_nocheat 1")
-            #self.game.add_game_args("+viz_debug 0")
-            self.game.add_game_args("+timelimit 10.0")
-
-        self.variables = None
         self.game.init()
-        if not self.is_server:
-            self.new_episode()
+        self.new_episode()
 
         if actions is None:
             self.actions = np.eye(len(self.game.get_available_buttons()), dtype=int).tolist()
-        else:
+        elif len(actions) != 0:
             self.actions = actions
-        self.button_num = len(self.actions)
+        else:
+            self.actions = None
 
+        if self.actions is not None:
+            self.button_num = len(self.actions)
+            self.use_action_set = True
+        else:
+            self.button_num = len(self.game.get_available_buttons())
+            self.use_action_set = False
+
+        self.variables = None
         state = self.get_state()
         if state.game_variables is not None:
             self.variables = state.game_variables
 
     def step(self, action):
         reset_variables = False
+        if self.use_action_set:
+            action = self.actions[action]
 
         if self.game.is_player_dead():
             self.game.respawn_player()
             reset_variables = True
 
         if self.visible is False:
-            reward = self.game.make_action(self.actions[action], self.skiprate)
+            reward = self.game.make_action(action, self.skiprate)
         else:
-            self.game.set_action(self.actions[action])
+            self.game.set_action(action)
             for i in range(self.skiprate):
                 self.game.advance_action(1, True)
             reward = self.game.get_last_reward()
 
         episode_finished = self.game.is_episode_finished()
-        finished = episode_finished or self.game.is_player_dead()
+        dead = self.game.is_player_dead()
+        finished = episode_finished or dead
         if finished:
-            if self.cig:
-                self.episode_return = self.variables[2]
-            else:
-                self.episode_return = self.game.get_total_reward()
+            self.episode_return = self.game.get_total_reward()
 
-        if episode_finished:
+        if finished:
             self.new_episode()
             reset_variables = True
 
@@ -167,65 +79,35 @@ class DoomInstance:
         if reset_variables and state.game_variables is not None:
             self.variables = state.game_variables
 
-        return state, reward, finished
+        return state, reward, finished, dead
 
     def advance(self):
-        self.game.advance_action()
+        self.game.advance_action(self.skiprate)
         action = self.game.get_last_action()
         reward = self.game.get_last_reward()
         finished = self.game.is_episode_finished()
         return action, reward, finished
 
     def step_normalized(self, action):
-        state, reward, finished = self.step(action)
+        state, reward, finished, dead = self.step(action)
         state = self.normalize(state)
-        # comment this for basic and rocket configs
-        if state.variables is not None:
-            diff = state.variables - self.variables
-            if self.cig:
-                if diff[1] < -100:
-                    diff[1] = 0
-                diff = np.multiply(diff, [100 * 0.5 * (0.2 if diff[0] > 0 else 0.1), 100 * 0.5 * 0.01, 100 * 1 * 1])
-                if diff[2] > 0:
-                    print('HIT!!!', self.id)
-                # penalize shots with zero ammo
-                if self.variables[0] == 0 and self.actions[action][2] == 1:
-                    diff[0] -= 10
-                reward += diff.sum() - 3
-
-            self.variables = state.variables.copy()
-            if self.cig:
-                state.variables[2] = 0
-            else:
-                reward += diff.sum()
 
         return state, reward, finished
 
-    @staticmethod
-    def get_object_channel(label):
-        if label.object_name in obstacle:
-            return 1  # obstacle
-        elif label.object_name in enemy:
-            return 2  # enemy
-        elif label.object_name in health:
-            return 3  # health
-        elif label.object_name in ammo:
-            return 4  # ammo
+    class NormalizedState:
+        def __init__(self, screen, variables=None, depth=None, labels=None, automap=None):
+            self.screen = screen
+            self.depth = depth
+            self.labels = labels
+            self.variables = variables
+            self.labels = labels
+            self.automap = automap
 
-        return -1  # unknown object
-
-    @staticmethod
-    def normalize(state):
-
-        if state.labels_buffer is None and state.depth_buffer is None:
+    def normalize(self, state):
+        if state.screen_buffer is not None:
             screen = state.screen_buffer.astype(np.float32) / 127.5 - 1.
         else:
-            screen = np.zeros([5, *state.screen_buffer.shape[1:]])
-            screen[0, :] = (255.0 - state.depth_buffer) / 127.5 - 1.
-            for label in state.labels:
-                channel = DoomInstance.get_object_channel(label)
-                if channel >= 0:
-                    screen[channel, state.labels_buffer == label.value] = 1
+            screen = None
 
         if state.game_variables is not None:
             variables = state.game_variables
@@ -247,24 +129,19 @@ class DoomInstance:
         else:
             automap = None
 
-        return NormalizedState(screen=screen, variables=variables, depth=depth, labels=labels, automap=automap)
+        return self.NormalizedState(screen=screen, variables=variables, depth=depth, labels=labels, automap=automap)
 
     def get_state(self):
         state = self.game.get_state()
-        reset_variables = False
         while state is None:
             if self.game.is_player_dead():
                 self.game.respawn_player()
                 self.game.advance_action(1)
             elif self.game.is_episode_finished():
                 self.new_episode()
-                reset_variables = True
             else:
                 self.game.advance_action(1)
             state = self.game.get_state()
-
-        if reset_variables and state.game_variables is not None:
-            self.variables = state.game_variables
 
         return state
 
@@ -276,21 +153,12 @@ class DoomInstance:
         self.game.is_episode_finished()
 
     def new_episode(self):
-        if self.is_server:
-            pass
         if self.visible:
-            file_name = '{:%Y-%m-%d_%H-%M-%S}_rec.lmp'.format(datetime.datetime.now())
-            self.game.new_episode(file_name)
+            #file_name = '{:%Y-%m-%d_%H-%M-%S}_rec.lmp'.format(datetime.datetime.now())
+            #self.game.new_episode(file_name)
+            self.game.new_episode()
         else:
             self.game.new_episode()
-        if self.cig:
-            self.game.send_game_command("removebots")
-            if self.id is not None:
-                for i in range(20):
-                    self.game.send_game_command("addbot")
-            else:
-                for i in range(20):
-                    self.game.send_game_command("addbot")
 
     def release(self):
         self.game.close()

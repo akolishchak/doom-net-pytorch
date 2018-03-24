@@ -9,7 +9,7 @@ COMMAND="$1"
 MODEL=aac_map
 CHECK_POINT=$BASEDIR/checkpoints/cig_aac_map_20_95_skip4_cp.pth
 ACTION_SET=$BASEDIR/actions/action_set_speed_shot_backward_right.npy
-CONFIG=$BASEDIR/environments/cig.cfg
+CONFIG=$BASEDIR/environments/cig_map.cfg
 
 if [ $COMMAND == 'train' ]
 then
@@ -22,7 +22,7 @@ then
     --action_set $ACTION_SET \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
-    --frame_num 1 \
+    --frame_num 4 \
     --checkpoint_file $CHECK_POINT \
     --checkpoint_rate 500
 elif [ $COMMAND == 'resume' ]
@@ -37,7 +37,7 @@ then
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
-    --frame_num 1 \
+    --frame_num 4 \
     --checkpoint_file $CHECK_POINT \
     --checkpoint_rate 500
 elif [ $COMMAND == 'test' ]
@@ -49,7 +49,7 @@ then
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
-    --frame_num 1
+    --frame_num 4
 else
     echo "'$COMMAND' is unknown command."
 fi

@@ -12,7 +12,6 @@ from aac_lstm import AdvantageActorCriticLSTM
 from aac_noisy import AdvantageActorCriticNoisy
 from aac_map import AdvantageActorCriticMap
 from aac_depth import AdvantageActorCriticDepth
-#from mb_map import ModelBasedMap
 
 
 def get_model(args):
@@ -27,7 +26,6 @@ def get_model(args):
         'aac_noisy': AdvantageActorCriticNoisy,
         'aac_depth': AdvantageActorCriticDepth,
         'aac_map': AdvantageActorCriticMap
-        #'mb_map': ModelBasedMap
     }
     model = model_class[args.model](args)
 

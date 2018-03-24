@@ -23,11 +23,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--model',
         default='aac',
-        choices=('aac', 'aac_lstm', 'aac_noisy', 'aac_depth', 'aac_map', 'mb_map'),
+        choices=('aac', 'aac_lstm', 'aac_noisy', 'aac_depth', 'aac_map'),
         help='model to work with')
     parser.add_argument('--base_model', default=None, help='path to base model file')
-    parser.add_argument('--action_set', default=None, help='model to work with')
+    parser.add_argument('--action_set', default=None, help='action set')
     parser.add_argument('--load', default=None, help='path to model file')
+    parser.add_argument('--doom_instance', default='basic', choices=('basic', 'cig', 'map'), help='doom instance type')
     parser.add_argument('--vizdoom_config', default='environments/basic.cfg', help='vizdoom config path')
     parser.add_argument('--vizdoom_path', default=_vzd_path, help='path to vizdoom')
     parser.add_argument('--wad_path', default=_vzd_path + '/freedoom2.wad', help='wad file path')

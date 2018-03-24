@@ -8,11 +8,8 @@ from multiprocessing.pool import ThreadPool
 import time
 import torch
 import torch.optim as optim
-from doom_instance import *
 from cuda import *
 from model import Model
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import cm
 import numpy as np
 import math
 
@@ -32,7 +29,7 @@ class AACBase(Model):
 
         optimizer.zero_grad()
 
-        state = NormalizedState(screen=None, depth=None, labels=None, variables=None)
+        state = args.instance_class.NormalizedState(screen=None, depth=None, labels=None, variables=None)
         state.screen = torch.Tensor(args.batch_size, *args.screen_size)
         state.variables = torch.Tensor(args.batch_size, args.variable_num)
         reward = torch.Tensor(args.batch_size, 1)
@@ -41,7 +38,7 @@ class AACBase(Model):
 
         games = []
         for i in range(args.batch_size):
-            games.append(DoomInstance(args.vizdoom_config, args.wad_path, args.skiprate, i, actions=args.action_set, bot_cmd=args.bot_cmd))
+            games.append(args.instance_class(args.vizdoom_config, args.wad_path, args.skiprate, actions=args.action_set, id=i))
 
         pool = ThreadPool()
 
@@ -111,11 +108,11 @@ class AACBase(Model):
         print("testing...")
         self.eval()
 
-        game = DoomInstance(
-            args.vizdoom_config, args.wad_path, args.skiprate, visible=True, actions=args.action_set, bot_cmd=args.bot_cmd)
+        game = args.instance_class(
+            args.vizdoom_config, args.wad_path, args.skiprate, visible=True, mode=Mode.ASYNC_PLAYER, actions=args.action_set)
         step_state = game.get_state_normalized()
 
-        state = NormalizedState(screen=None, depth=None, labels=None, variables=None)
+        state = args.instance_class.NormalizedState(screen=None, depth=None, labels=None, variables=None)
         state.screen = torch.Tensor(1, *args.screen_size)
         state.variables = torch.Tensor(1, args.variable_num)
 
@@ -127,9 +124,6 @@ class AACBase(Model):
             action = self.get_action(state)
             # render
             step_state, _, finished = game.step_normalized(action[0][0])
-            #img = step_state.screen[0:3, :]
-            #img = img.transpose(1, 2, 0)
-            #plt.imsave('depth-plan.png', img)
             if finished:
                 print("episode return: {}".format(game.get_episode_return()))
                 self.set_terminal(torch.zeros(1))

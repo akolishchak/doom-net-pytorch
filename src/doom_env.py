@@ -4,19 +4,31 @@
 # Created by Andrey Kolishchak on 01/21/17.
 #
 import numpy as np
+from vizdoom import *
 from doom_instance import DoomInstance
+from doom_instance_cig import DoomInstanceCig
+from doom_instance_map import DoomInstanceMap
 
 
 def init_doom_env(args):
-    if args.action_set is not None:
+    if args.action_set == 'noset':
+        args.action_set = []
+    elif args.action_set is not None:
         args.action_set = np.load(args.action_set).tolist()
 
-    doom = DoomInstance(
+    instance_class = {
+        'basic': DoomInstance,
+        'cig': DoomInstanceCig,
+        'map': DoomInstanceMap
+    }
+    args.instance_class = instance_class[args.doom_instance]
+
+    doom = args.instance_class(
         args.vizdoom_config,
         wad=args.wad_path,
         skiprate=args.skiprate,
-        id=None,
         visible=False,
+        mode=Mode.PLAYER,
         actions=args.action_set)
     state = doom.get_state_normalized()
 
