@@ -7,7 +7,6 @@ import numpy as np
 from vizdoom import *
 from doom_instance import DoomInstance
 from doom_instance_cig import DoomInstanceCig
-from doom_instance_map import DoomInstanceMap
 
 
 def init_doom_env(args):
@@ -18,9 +17,12 @@ def init_doom_env(args):
 
     instance_class = {
         'basic': DoomInstance,
-        'cig': DoomInstanceCig,
-        'map': DoomInstanceMap
+        'cig': DoomInstanceCig
     }
+    try:
+        args.doom_instance
+    except NameError:
+        args.doom_instance = 'basic'
     args.instance_class = instance_class[args.doom_instance]
 
     doom = args.instance_class(
