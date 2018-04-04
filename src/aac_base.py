@@ -10,8 +10,7 @@ import torch
 import torch.optim as optim
 from cuda import *
 from model import Model
-import numpy as np
-import math
+import vizdoom
 
 
 class AACBase(Model):
@@ -109,7 +108,7 @@ class AACBase(Model):
         self.eval()
 
         game = args.instance_class(
-            args.vizdoom_config, args.wad_path, args.skiprate, visible=True, mode=Mode.ASYNC_PLAYER, actions=args.action_set)
+            args.vizdoom_config, args.wad_path, args.skiprate, visible=True, mode=vizdoom.Mode.ASYNC_PLAYER, actions=args.action_set)
         step_state = game.get_state_normalized()
 
         state = args.instance_class.NormalizedState(screen=None, depth=None, labels=None, variables=None)
