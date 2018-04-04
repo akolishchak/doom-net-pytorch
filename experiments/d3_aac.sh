@@ -6,10 +6,10 @@ if [ "$#" -ne 1 ]; then
 fi
 
 COMMAND="$1"
-MODEL=aac_lstm_map
-CHECK_POINT=$BASEDIR/checkpoints/cig_aac_map_lstm_20_95_skip4_cp.pth
-ACTION_SET=$BASEDIR/actions/action_set_speed_shot_backward_right.npy
-CONFIG=$BASEDIR/environments/cig.cfg
+MODEL=aac
+CHECK_POINT=$BASEDIR/checkpoints/d3_battle__aac_cp.pth
+CONFIG=$BASEDIR/environments/D3_battle.cfg
+INSTANCE=basic
 
 if [ $COMMAND == 'train' ]
 then
@@ -19,12 +19,13 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
-    --action_set $ACTION_SET \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500
+    --checkpoint_rate 100 \
+    --episode_num 5000
 elif [ $COMMAND == 'resume' ]
 then
     python $BASEDIR/src/main.py \
@@ -33,22 +34,23 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
-    --action_set $ACTION_SET \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
-    --checkpoint_rate 500
+    --checkpoint_rate 100 \
+    --episode_num 5000
 elif [ $COMMAND == 'test' ]
 then
     python $BASEDIR/src/main.py \
     --mode test \
     --model $MODEL \
-    --action_set $ACTION_SET \
     --load $CHECK_POINT \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
-    --skiprate 4 \
+    --skiprate 1 \
     --frame_num 1
 else
     echo "'$COMMAND' is unknown command."
