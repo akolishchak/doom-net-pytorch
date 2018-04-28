@@ -8,7 +8,7 @@ from multiprocessing.pool import ThreadPool
 import time
 import torch
 import torch.optim as optim
-from cuda import *
+from device import device
 from model import Model
 import vizdoom
 
@@ -78,8 +78,8 @@ class AACBase(Model):
             weights = []
             for p in self.parameters():
                 if p.grad is not None:
-                    grads.append(p.grad.data.view(-1))
-                    weights.append(p.data.view(-1))
+                    grads.append(p.grad.view(-1))
+                    weights.append(p.view(-1))
             grads = torch.cat(grads, 0)
             weights = torch.cat(weights, 0)
             grads_norm = grads.norm()

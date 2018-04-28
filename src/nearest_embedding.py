@@ -31,7 +31,7 @@ class NearestEmbeddingFunction(Function):
 
     @staticmethod
     def backward(ctx, grad_output, grad_indices):
-        tensor_type = type(grad_output.data).__name__
+        tensor_type = type(grad_output).__name__
         if grad_output.is_cuda:
             SparseTensor = getattr(torch.cuda.sparse, tensor_type)
         else:
@@ -40,7 +40,7 @@ class NearestEmbeddingFunction(Function):
         grad_input = grad_output
         indices = ctx._indices
         indices = indices.view(1, -1)
-        grad_weight = Variable(SparseTensor(indices, grad_output.data, ctx._weight_size).to_dense())
+        grad_weight = SparseTensor(indices, grad_output, ctx._weight_size).to_dense()
         return grad_input, grad_weight
 
 
@@ -53,7 +53,7 @@ class NearestEmbedding(nn.Module):
         self.embedding_num = embedding_num
 
     def reset_parameters(self):
-        self.weight.data.normal_(0, 1)
+        self.weight.normal_(0, 1)
 
     def forward(self, input):
         input = self.bn(input)
@@ -62,8 +62,8 @@ class NearestEmbedding(nn.Module):
     def forward_onehot(self, input):
         input = self.bn(input)
         indices = NearestEmbeddingFunction.apply(input, self.weight)[1]
-        onehot = input.data.new(input.size(0), self.embedding_num)
+        onehot = input.new(input.size(0), self.embedding_num)
         onehot.zero_()
-        onehot.scatter_(1, indices.data.view(-1, 1), 1)
-        return Variable(onehot)
+        onehot.scatter_(1, indices.view(-1, 1), 1)
+        return onehot
 

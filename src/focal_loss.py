@@ -6,7 +6,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from cuda import *
 
 
 class FocalLoss(nn.Module):
@@ -19,7 +18,7 @@ class FocalLoss(nn.Module):
 
     def forward(self, input, target):
         target = target.view(target.shape[0], 1, *target.shape[1:])
-        target_one_hot = Variable(torch.zeros(*input.shape))
+        target_one_hot = torch.zeros(*input.shape)
         target_one_hot = target_one_hot.scatter_(1, target, 1.0)
         logp = input * target_one_hot
         p = logp.exp()+self.epsilon
@@ -31,16 +30,16 @@ class FocalLoss(nn.Module):
 def test():
     loss_nll = nn.NLLLoss2d()
     loss_focal = FocalLoss(gamma=0)
-    target = Variable(torch.Tensor(2, 1, 5).random_(3).long())
+    target = torch.Tensor(2, 1, 5).random_(3).long()
 
     data = torch.rand(2, 3, 1, 5)
-    input1 = Variable(data, requires_grad=True)
+    input1 = torch.Tensor(data, requires_grad=True)
     loss1 = loss_nll(F.log_softmax(input1), target)
     loss1.backward()
     print(loss1)
     print(input1.grad)
 
-    input2 = Variable(data, requires_grad=True)
+    input2 = torch.Tensor(data, requires_grad=True)
     loss2 = loss_focal(F.log_softmax(input2), target)
     loss2.backward()
     print(loss2)

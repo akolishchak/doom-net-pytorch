@@ -6,7 +6,7 @@
 #
 import torch.nn as nn
 import torch.nn.functional as F
-from cuda import *
+from device import device
 from collections import namedtuple
 from noisy_linear import NoisyLinear
 from aac_base import AACBase
@@ -78,9 +78,8 @@ class BaseModelNoisy(AACBase):
                 screen_batch.append(torch.cat(screens, 0))
             screen = torch.stack(screen_batch)
 
-        screen = Variable(screen, volatile=not self.training)
-        variables = Variable(variables / 100, volatile=not self.training)
-        return screen, variables
+        variables /= 100
+        return screen.to(device), variables.to(device)
 
     def set_terminal(self, terminal):
         if self.screens is not None:
@@ -112,8 +111,8 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
             self.conv6.load_state_dict(base_model.conv6.state_dict())
             self.screen_features1.load_state_dict(base_model.screen_features1.state_dict())
             self.batch_norm.load_state_dict(base_model.batch_norm.state_dict())
-            self.action1.weight_mu.data = base_model.action1.weight.data.clone()
-            self.action2.weight_mu.data = base_model.action2.weight.data.clone()
+            self.action1.weight_mu = base_model.action1.weight.clone()
+            self.action2.weight_mu = base_model.action2.weight.clone()
             del base_model
 
         self.discount = args.episode_discount
@@ -136,10 +135,7 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
 
         # greedy actions
         if random.random() < 0.1:
-            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1))
-            action = Variable(action)
-            if USE_CUDA:
-                action = action.cuda()
+            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1)).to(device)
         else:
            _, action = action_prob.max(1, keepdim=True)
 
@@ -155,7 +151,7 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
 
     def get_action(self, state):
         action, _ = self.forward(*self.transform_input(state.screen, state.variables))
-        return action.data
+        return action
 
     def set_reward(self, reward):
         self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
@@ -170,23 +166,22 @@ class AdvantageActorCriticNoisy(BaseModelNoisy):
         #rewards = torch.stack(self.rewards, dim=0)
         rewards = self.rewards
 
-        returns = torch.Tensor(len(rewards) - 1, *self.outputs[-1].value.data.size())
-        step_return = self.outputs[-1].value.data.cpu()
+        returns = torch.Tensor(len(rewards) - 1, *self.outputs[-1].value.size())
+        step_return = self.outputs[-1].value.detach().cpu()
         for i in range(len(rewards) - 2, -1, -1):
             step_return.mul_(self.discounts[i]).add_(rewards[i])
             returns[i] = step_return
 
-        if USE_CUDA:
-            returns = returns.cuda()
+        returns = returns.to(device)
         #
         # calculate losses
         policy_loss = 0
         value_loss = 0
         steps = len(self.outputs) - 1
         for i in range(steps):
-            advantage = Variable(returns[i] - self.outputs[i].value.data)
+            advantage = returns[i] - self.outputs[i].value.detach()
             policy_loss += -self.outputs[i].log_action * advantage
-            value_loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
+            value_loss += F.smooth_l1_loss(self.outputs[i].value, returns[i])
 
         weights_l2 = 0
         for param in self.parameters():

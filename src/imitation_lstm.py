@@ -9,7 +9,7 @@ import h5py
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from cuda import *
+from device import device
 import argparse
 from doom_instance import *
 from aac_lstm import BaseModelLSTM
@@ -62,14 +62,12 @@ def train(args):
     input_shape = screens[0].shape
     train_generator = data_generator(args, screens, variables, labels, episodes)
 
-    model = BaseModelLSTM(input_shape[0], len(action_sets), variables.shape[1])
+    model = BaseModelLSTM(input_shape[0], len(action_sets), variables.shape[1]).to(device)
 
     #source_model = torch.load('imitation_model_lstm_bn0.pth')
     #model.load_state_dict(source_model.state_dict())
     #del source_model
 
-    if USE_CUDA:
-        model.cuda()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=5e-4)
     optimizer.zero_grad()
@@ -79,14 +77,14 @@ def train(args):
     cp = 0
 
     for batch, (screens, variables, labels, terminals) in enumerate(train_generator):
-        screens, variables, labels = Variable(screens), Variable(variables), Variable(labels)
+        screens, variables, labels = screens.to(device), variables.to(device), labels.to(device)
         outputs = model(screens, variables)
         loss = criterion(outputs, labels)
         model.set_terminal(terminals)
 
-        running_loss += loss.data[0]
-        _, pred = outputs.data.max(1)
-        accuracy = (pred == labels.data).float().mean()
+        running_loss += loss.item()
+        _, pred = outputs.max(1)
+        accuracy = (pred == labels).float().mean()
         running_accuracy += accuracy
 
         if batch % args.episode_size == args.episode_size - 1:

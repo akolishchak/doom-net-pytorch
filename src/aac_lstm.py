@@ -3,9 +3,10 @@
 #
 # Created by Andrey Kolishchak on 01/21/17.
 #
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from cuda import *
+from device import device
 from collections import namedtuple
 from lstm import LSTM
 from aac_base import AACBase
@@ -49,8 +50,8 @@ class BaseModelLSTM(AACBase):
         screen_features = screen_features.view(screen_features.size(0), -1)
         # lstm
         if self.hx is None:
-            self.hx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
-            self.cx = Variable(torch.zeros(screen_features.size(0), self.feature_num), volatile=not self.training)
+            self.hx = torch.zeros(screen_features.size(0), self.feature_num).to(device)
+            self.cx = torch.zeros(screen_features.size(0), self.feature_num).to(device)
         self.hx, self.cx = self.screen_features1(screen_features, (self.hx, self.cx))
 
         # action
@@ -60,15 +61,15 @@ class BaseModelLSTM(AACBase):
         return action
 
     def set_terminal(self, terminal):
-        terminal = Variable(terminal.view(-1, 1).expand_as(self.cx))
+        terminal = terminal.view(-1, 1).expand_as(self.cx).to(device)
         self.cx = self.cx * terminal
         self.hx = self.hx * terminal
 
     def reset(self):
         if self.hx is not None:
-            self.hx = Variable(self.hx.data, volatile=not self.training)
+            self.hx = self.hx.detach()
         if self.cx is not None:
-            self.cx = Variable(self.cx.data, volatile=not self.training)
+            self.cx = self.cx.detach()
 
 
 class AdvantageActorCriticLSTM(BaseModelLSTM):
@@ -87,9 +88,9 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
 
     def reset(self):
         if self.hx is not None:
-            self.hx = Variable(self.hx.data)
+            self.hx = self.hx.detach()
         if self.cx is not None:
-            self.cx = Variable(self.cx.data)
+            self.cx = self.cx.detach()
         self.outputs = []
         self.rewards = []
         self.discounts = []
@@ -103,10 +104,7 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
 
         # greedy actions
         if random.random() < 0.1:
-            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1))
-            action = Variable(action)
-            if USE_CUDA:
-                action = action.cuda()
+            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1)).to(device)
         else:
             _, action = action_prob.max(1, keepdim=True)
 
@@ -121,10 +119,10 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         return action, value
 
     def get_action(self, state):
-        screen = Variable(state.screen, volatile=not self.training)
-        variables = Variable(state.variables / 100, volatile=not self.training)
-        action, _ = self.forward(screen, variables)
-        return action.data
+        screen = state.screen
+        variables = state.variables / 100
+        action, _ = self.forward(screen.to(device), variables.to(device))
+        return action
 
     def set_reward(self, reward):
         self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
@@ -137,23 +135,22 @@ class AdvantageActorCriticLSTM(BaseModelLSTM):
         #
         rewards = self.rewards
 
-        returns = torch.Tensor(len(rewards) - 1, *self.outputs[-1].value.data.size())
-        step_return = self.outputs[-1].value.data.cpu()
+        returns = torch.Tensor(len(rewards) - 1, *self.outputs[-1].value.size())
+        step_return = self.outputs[-1].value.detach().cpu()
         for i in range(len(rewards) - 2, -1, -1):
             step_return.mul_(self.discounts[i]).add_(rewards[i])
             returns[i] = step_return
 
-        if USE_CUDA:
-            returns = returns.cuda()
+        returns = returns.to(device)
         #
         # calculate losses
         policy_loss = 0
         value_loss = 0
         steps = len(self.outputs) - 1
         for i in range(steps):
-            advantage = Variable(returns[i] - self.outputs[i].value.data)
+            advantage = returns[i] - self.outputs[i].value.detach()
             policy_loss += -self.outputs[i].log_action * advantage
-            value_loss += F.smooth_l1_loss(self.outputs[i].value, Variable(returns[i]))
+            value_loss += F.smooth_l1_loss(self.outputs[i].value, returns[i])
 
         loss = policy_loss.mean() / steps + value_loss / steps
         loss.backward()

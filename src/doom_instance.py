@@ -90,6 +90,7 @@ class DoomInstance:
 
     def step_normalized(self, action):
         state, reward, finished, dead = self.step(action)
+        reward *= 100
         state = self.normalize(state)
 
         return state, reward, finished

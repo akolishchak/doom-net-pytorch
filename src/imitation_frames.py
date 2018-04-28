@@ -9,7 +9,7 @@ import h5py
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from cuda import *
+from device import device
 import argparse
 from doom_instance import *
 from aac import BaseModel
@@ -63,16 +63,13 @@ def train(args):
 
     np.save('action_set', action_sets)
 
-    model = BaseModel(input_shape[0]*args.frame_num, len(action_sets), variables.shape[1], args.frame_num)
+    model = BaseModel(input_shape[0]*args.frame_num, len(action_sets), variables.shape[1], args.frame_num).to(device)
 
     if args.load is not None and os.path.isfile(args.load):
         print("loading model parameters {}".format(args.load))
         source_model = torch.load(args.load)
         model.load_state_dict(source_model.state_dict())
         del source_model
-
-    if USE_CUDA:
-        model.cuda()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=5e-4)
@@ -82,14 +79,14 @@ def train(args):
     batch_time = time.time()
 
     for batch, (screens, variables, labels, terminals) in enumerate(train_generator):
-        labels = Variable(labels)
+        labels = labels.to(device)
         outputs, _ = model(*model.transform_input(screens, variables))
         loss = criterion(outputs, labels)
         model.set_terminal(terminals)
 
-        running_loss += loss.data[0]
-        _, pred = outputs.data.max(1)
-        accuracy = (pred == labels.data).float().mean()
+        running_loss += loss.item()
+        _, pred = outputs.max(1)
+        accuracy = (pred == labels).float().mean()
         running_accuracy += accuracy
 
         loss.backward()

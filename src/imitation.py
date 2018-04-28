@@ -6,10 +6,11 @@
 import os
 import time
 import h5py
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-from cuda import *
+import device from device
 import argparse
 from doom_instance import *
 from aac import BaseModel
@@ -53,16 +54,13 @@ def train(args):
     np.save('action_set', train_set.action_sets)
     training_data_loader = DataLoader(dataset=train_set, num_workers=2, batch_size=100, shuffle=True)
 
-    model = BaseModel(train_set.input_shape[0], len(train_set.action_sets), 3, args.frame_num)
+    model = BaseModel(train_set.input_shape[0], len(train_set.action_sets), 3, args.frame_num).to(device)
 
     if args.load is not None and os.path.isfile(args.load):
         print("loading model parameters {}".format(args.load))
         source_model = torch.load(args.load)
         model.load_state_dict(source_model.state_dict())
         del source_model
-
-    if USE_CUDA:
-        model.cuda()
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=5e-4)
@@ -72,7 +70,7 @@ def train(args):
         running_accuracy = 0
         batch_time = time.time()
         for batch, (screens, variables, labels) in enumerate(training_data_loader):
-            screens, variables, labels = Variable(screens), Variable(variables), Variable(labels)
+            screens, variables, labels = screens.to(device), variables.to(device), labels.to(device)
 
             optimizer.zero_grad()
 
@@ -81,10 +79,10 @@ def train(args):
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.data[0]
+            running_loss += loss.item()
 
-            _, pred = outputs.data.max(1)
-            accuracy = (pred == labels.data).float().mean()
+            _, pred = outputs.max(1)
+            accuracy = (pred == labels).float().mean()
             running_accuracy += accuracy
 
             batches_per_print = 10

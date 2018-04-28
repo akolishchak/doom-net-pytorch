@@ -10,7 +10,7 @@ import math
 from torch.nn.parameter import Parameter
 import torch.nn as nn
 import torch.nn.functional as F
-from cuda import *
+from device import device
 
 
 class NoisyLinear(nn.Module):
@@ -39,23 +39,23 @@ class NoisyLinear(nn.Module):
     def sample(self):
         if self.training:
             self.weight_epsilon.normal_()
-            self.weight = Variable(self.weight_epsilon).mul(self.weight_sigma).add_(self.weight_mu)
+            self.weight = self.weight_epsilon.mul(self.weight_sigma).add_(self.weight_mu)
             if self.bias is not None:
                 self.bias_epsilon.normal_()
-                self.bias = Variable(self.bias_epsilon).mul(self.bias_sigma).add_(self.bias_mu)
+                self.bias = self.bias_epsilon.mul(self.bias_sigma).add_(self.bias_mu)
         else:
-            self.weight = Variable(self.weight_mu.data, volatile=True)
+            self.weight = self.weight_mu.detach()
             if self.bias is not None:
-                self.bias = Variable(self.bias_mu.data, volatile=True)
+                self.bias = self.bias_mu.detach()
         self.sampled = True
 
     def reset_parameters(self):
         stdv = math.sqrt(3.0 / self.weight.size(1))
-        self.weight_mu.data.uniform_(-stdv, stdv)
-        self.weight_sigma.data.fill_(0.017)
+        self.weight_mu.uniform_(-stdv, stdv)
+        self.weight_sigma.fill_(0.017)
         if self.bias is not None:
-            self.bias_mu.data.uniform_(-stdv, stdv)
-            self.bias_sigma.data.fill_(0.017)
+            self.bias_mu.uniform_(-stdv, stdv)
+            self.bias_sigma.fill_(0.017)
 
     def forward(self, input):
         if not self.sampled:
