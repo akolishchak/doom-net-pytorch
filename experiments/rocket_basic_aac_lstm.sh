@@ -17,11 +17,11 @@ then
     --mode train \
     --episode_size 20 \
     --batch_size 20 \
-    --episode_discount 0.9875 \
+    --episode_discount 0.95 \
     --model $MODEL \
     --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
-    --skiprate 1 \
+    --skiprate 4 \
     --frame_num 1 \
     --checkpoint_file $CHECK_POINT \
     --checkpoint_rate 100 \
