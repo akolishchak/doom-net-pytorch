@@ -10,10 +10,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-import device from device
+from device import device
 import argparse
 from doom_instance import *
 from aac import BaseModel
+
 
 class DoomDataset(Dataset):
     def __init__(self, h5_path):
@@ -114,5 +115,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train(args)
-
-    test(args)

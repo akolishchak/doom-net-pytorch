@@ -119,8 +119,7 @@ class AdvantageActorCritic(BaseModel):
 
         # greedy actions
         if random.random() < 0.1:
-            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1))
-            action = action.to(device)
+            action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1)).to(device)
         else:
            _, action = action_prob.max(1, keepdim=True)
 

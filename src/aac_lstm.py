@@ -50,8 +50,8 @@ class BaseModelLSTM(AACBase):
         screen_features = screen_features.view(screen_features.size(0), -1)
         # lstm
         if self.hx is None:
-            self.hx = torch.zeros(screen_features.size(0), self.feature_num).to(device)
-            self.cx = torch.zeros(screen_features.size(0), self.feature_num).to(device)
+            self.hx = torch.zeros(screen_features.size(0), self.feature_num, device=device)
+            self.cx = torch.zeros(screen_features.size(0), self.feature_num, device=device)
         self.hx, self.cx = self.screen_features1(screen_features, (self.hx, self.cx))
 
         # action
