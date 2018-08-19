@@ -1,10 +1,50 @@
 #
-# doom_instance.py, doom-net
+# doom_object.py, doom-net
 #
 # Created by Andrey Kolishchak on 01/21/17.
 #
+import math
+import numpy as np
+
 
 class DoomObject:
+
+    class Type:
+        UNKNOWN = -1
+        ENEMY = 0
+        BULLET = 1
+        OBSTACLE = 2
+        HEALTH = 3
+        AMMO = 4
+        EXIT = 5
+        EXIT_SIGN = 6
+        DOOR = 7
+        WALLS = 8
+        AGENT = 9
+    '''
+    class Type:
+        UNKNOWN = -1
+        AGENT = -2
+        ENEMY = 1
+        HEALTH = 2
+        AMMO = 3
+        EXIT = 4
+        EXIT_SIGN = 5
+        DOOR = 6
+        WALLS = 7
+    '''
+
+    TYPE = 0
+    X = 1
+    Y = 2
+    Z = 3
+    HEADING = 4
+    VELOCITY_X = 5
+    VELOCITY_Y = 6
+
+    @staticmethod
+    def get_pose(type, x, y, z=0, heading=0, velocity_x=0, velociy_y=0):
+        return np.array([type, x, y, z, heading, velocity_x, velociy_y], dtype=np.float32)
 
     ammo = [
         'Backpack',     # Backpack (Increase carrying capacity)
@@ -56,29 +96,69 @@ class DoomObject:
     ]
 
     obstacle = [
-        'Column',                  # Mini Tech Light
+        #'Column',                  # Mini Tech Light
         'BurningBarrel',           # Barrel Fire
         'ExplosiveBarrel',         # Exploding Barrel(Doom)
         #'TechLamp',                # Large Tech Lamp
-        'TechLamp2',               # Small Tech Lamp
-        'TechPillar'               # Tech Column
+        #'TechLamp2',               # Small Tech Lamp
+        #'TechPillar'               # Tech Column
     ]
 
     shot = [
         'Rocket'
     ]
 
+    exit = [
+        'Exit'
+    ]
+
+    exit_sign = [
+        'ExitSign'
+    ]
+
+    door = [
+        'Door'
+    ]
+
+    '''
     @staticmethod
     def get_id(label):
-        if label.object_name in DoomObject.enemy:
-            return 0  # enemy
-        elif label.object_name in DoomObject.shot:
-            return 1  # shot
-        elif label.object_name in DoomObject.obstacle:
-            return 2  # obstacle
-        elif label.object_name in DoomObject.health:
-            return 3  # health
-        elif label.object_name in DoomObject.ammo:
-            return 4  # ammo
+        object_type = DoomObject.Type.UNKNOWN
 
-        return -1  # unknown object
+        if label.object_name in DoomObject.enemy:
+            object_type = DoomObject.Type.ENEMY
+        elif label.object_name in DoomObject.shot:
+            object_type = DoomObject.Type.BULLET
+        elif label.object_name in DoomObject.obstacle:
+            object_type = DoomObject.Type.OBSTACLE
+        elif label.object_name in DoomObject.health:
+            object_type = DoomObject.Type.HEALTH
+        elif label.object_name in DoomObject.ammo:
+            object_type = DoomObject.Type.AMMO
+        elif label.object_name in DoomObject.exit:
+            object_type = DoomObject.Type.EXIT
+        elif label.object_name in DoomObject.exit_sign:
+            object_type = DoomObject.Type.EXIT_SIGN
+        elif label.object_name in DoomObject.door:
+            object_type = DoomObject.Type.DOOR
+
+        return object_type
+    '''
+    @staticmethod
+    def get_id(label):
+        object_type = DoomObject.Type.UNKNOWN
+
+        if label.object_name in DoomObject.enemy:
+            object_type = DoomObject.Type.ENEMY
+        elif label.object_name in DoomObject.health:
+            object_type = DoomObject.Type.HEALTH
+        elif label.object_name in DoomObject.ammo:
+            object_type = DoomObject.Type.AMMO
+        elif label.object_name in DoomObject.exit:
+            object_type = DoomObject.Type.EXIT
+        elif label.object_name in DoomObject.exit_sign:
+            object_type = DoomObject.Type.EXIT_SIGN
+        elif label.object_name in DoomObject.door:
+            object_type = DoomObject.Type.DOOR
+
+        return object_type

@@ -6,6 +6,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from device import device
 
 
 class FocalLoss(nn.Module):
@@ -18,7 +19,7 @@ class FocalLoss(nn.Module):
 
     def forward(self, input, target):
         target = target.view(target.shape[0], 1, *target.shape[1:])
-        target_one_hot = torch.zeros(*input.shape)
+        target_one_hot = torch.zeros(*input.shape, device=device)
         target_one_hot = target_one_hot.scatter_(1, target, 1.0)
         logp = input * target_one_hot
         p = logp.exp()+self.epsilon

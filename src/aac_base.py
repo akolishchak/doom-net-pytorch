@@ -11,6 +11,9 @@ import torch.optim as optim
 from device import device
 from model import Model
 import vizdoom
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import cm
+import numpy as np
 
 
 class AACBase(Model):
@@ -19,9 +22,12 @@ class AACBase(Model):
 
     def run_train(self, args):
         print("training...")
+        params = list(self.parameters())
+        params_num = sum(param.numel() for param in params if param.requires_grad)
+        print("Parameters = ", params_num)
         self.train()
 
-        optimizer = optim.Adam(self.parameters(), lr=args.learning_rate)
+        optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, weight_decay=1e-5, amsgrad=True)
         if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
             optimizer_dict = torch.load(args.load+'_optimizer.pth')
             optimizer.load_state_dict(optimizer_dict)
@@ -61,8 +67,9 @@ class AACBase(Model):
                     state.screen[id, :] = torch.from_numpy(normalized_state.screen)
                     state.variables[id, :] = torch.from_numpy(normalized_state.variables)
                     reward[id, 0] = step_reward
+                    episode_return[id] = float(game.get_episode_return())
                     if finished:
-                        episode_return[id] = float(game.get_episode_return())
+                        #episode_return[id] = float(game.get_episode_return())
                         # cut rewards from future actions
                         terminal[id] = 0
                     else:
@@ -116,11 +123,16 @@ class AACBase(Model):
         state.variables = torch.Tensor(1, args.variable_num)
 
         while True:
+
+            #im = np.flip(step_state.screen[[0, 1, 7]], axis=1).transpose(1, 2, 0)
+            #plt.imsave('map_view.png', im, cmap=cm.gray)
+
             # convert state to torch tensors
             state.screen[0, :] = torch.from_numpy(step_state.screen)
             state.variables[0, :] = torch.from_numpy(step_state.variables)
             # compute an action
             action = self.get_action(state)
+            print(action)
             # render
             step_state, _, finished = game.step_normalized(action[0][0])
             if finished:

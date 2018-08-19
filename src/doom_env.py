@@ -7,6 +7,10 @@ import numpy as np
 from vizdoom import *
 from doom_instance import DoomInstance
 from doom_instance_cig import DoomInstanceCig
+#from doom_instance_map import DoomInstanceMap
+#from doom_instance_obj import DoomInstanceObj
+from doom_instance_oblige import DoomInstanceOblige
+#from doom_instance_oblige_map import DoomInstanceObligeMap
 
 
 def init_doom_env(args):
@@ -17,7 +21,11 @@ def init_doom_env(args):
 
     instance_class = {
         'basic': DoomInstance,
-        'cig': DoomInstanceCig
+        'cig': DoomInstanceCig,
+        #'map': DoomInstanceMap,
+        #'obj': DoomInstanceObj,
+        'oblige': DoomInstanceOblige,
+        #'oblige_map': DoomInstanceObligeMap
     }
     try:
         args.doom_instance

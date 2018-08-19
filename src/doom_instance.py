@@ -8,11 +8,15 @@ import numpy as np
 
 
 class DoomInstance:
-    def __init__(self, config, wad, skiprate, visible=False, mode=Mode.PLAYER, actions=None, id=None, args=None):
+    def __init__(self, config, wad, skiprate, visible=False, mode=Mode.PLAYER, actions=None, id=None, args=None, config_wad=None, map_id=None):
         self.game = DoomGame()
         self.game.set_doom_game_path(wad)
         self.game.load_config(config)
         self.game.set_mode(mode)
+        if config_wad is not None:
+            self.game.set_doom_scenario_path(config_wad)
+        if map_id is not None:
+            self.game.set_doom_map('map{:02d}'.format(map_id+1))
         self.visible = visible
         self.episode_return = 0
         self.skiprate = skiprate
@@ -21,6 +25,9 @@ class DoomInstance:
         if self.visible:
             self.game.set_window_visible(True)
             self.game.set_sound_enabled(True)
+            self.game.set_render_all_frames(True)
+
+        #self.game.set_window_visible(True)
 
         if args is not None:
             self.game.add_game_args(args)
@@ -90,8 +97,15 @@ class DoomInstance:
 
     def step_normalized(self, action):
         state, reward, finished, dead = self.step(action)
-        reward *= 100
         state = self.normalize(state)
+
+        #if reward != 4:
+        #    print(reward)
+        #reward = 0
+        #if state.variables is not None:
+        #    diff = state.variables - self.variables
+        #    reward = diff.sum()
+        #    self.variables = state.variables.copy()
 
         return state, reward, finished
 
