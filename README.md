@@ -2,7 +2,7 @@
 
 DoomNet is a [ViZDoom](http://vizdoom.cs.put.edu.pl/) agent trained by reinforcement learning. The agent is a neural network that outputs a probability of actions given only pixels from the screen buffer and set of game variables.
 
-#### [Visual Doom AI Competition 2018](http://vizdoom.cs.put.edu.pl/competition-cig-2018/competition-results) 
+#### [Visual Doom AI Competition 2018](https://www.crowdai.org/challenges/visual-doom-ai-competition-2018-singleplayer-track-1/leaderboards) 
 [![DoomNet track1, submission 0](images/cig2018-track1-sub1.png)](https://www.youtube.com/watch?v=8YQgtvC4tw8)
 
 #### [Visual Doom AI Competition 2017](http://vizdoom.cs.put.edu.pl/competition-cig-2017) 
