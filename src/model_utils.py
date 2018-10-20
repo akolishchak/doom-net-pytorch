@@ -11,15 +11,15 @@ from model import Model
 from aac import AdvantageActorCritic
 from aac_lstm import AdvantageActorCriticLSTM
 from aac_noisy import AdvantageActorCriticNoisy
-#from aac_map import AdvantageActorCriticMap
-#from aac_depth import AdvantageActorCriticDepth
-#from ppo import PPO
-#from ppo_map import PPOMap
+from aac_map import AdvantageActorCriticMap
+from aac_depth import AdvantageActorCriticDepth
+from ppo import PPO
+from ppo_map import PPOMap
 from ppo_screen import PPOScreen
-#from mcts_policy import MCTSPolicy
-#from state_base import StateBase
-#from es_base import ESBase
-#from planner import Planner
+from mcts_policy import MCTSPolicy
+from state_base import StateBase
+from es_base import ESBase
+from planner import Planner
 
 
 def get_model(args):
@@ -32,15 +32,15 @@ def get_model(args):
         'aac': AdvantageActorCritic,
         'aac_lstm': AdvantageActorCriticLSTM,
         'aac_noisy': AdvantageActorCriticNoisy,
-        #'aac_depth': AdvantageActorCriticDepth,
-        #'aac_map': AdvantageActorCriticMap,
-        #'ppo': PPO,
-        #'ppo_map': PPOMap,
+        'aac_depth': AdvantageActorCriticDepth,
+        'aac_map': AdvantageActorCriticMap,
+        'ppo': PPO,
+        'ppo_map': PPOMap,
         'ppo_screen': PPOScreen,
-        #'mcts': MCTSPolicy,
-        #'state': StateBase,
-        #'es': ESBase,
-        #'planner': Planner
+        'mcts': MCTSPolicy,
+        'state': StateBase,
+        'es': ESBase,
+        'planner': Planner
     }
 
     #

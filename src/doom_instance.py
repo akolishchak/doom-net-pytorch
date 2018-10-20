@@ -63,13 +63,7 @@ class DoomInstance:
             self.game.respawn_player()
             reset_variables = True
 
-        if self.visible is False:
-            reward = self.game.make_action(action, self.skiprate)
-        else:
-            self.game.set_action(action)
-            for i in range(self.skiprate):
-                self.game.advance_action(1, True)
-            reward = self.game.get_last_reward()
+        reward = self.game.make_action(action, self.skiprate)
 
         episode_finished = self.game.is_episode_finished()
         dead = self.game.is_player_dead()

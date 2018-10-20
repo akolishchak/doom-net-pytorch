@@ -11,16 +11,18 @@ class DoomObject:
 
     class Type:
         UNKNOWN = -1
+        AGENT = -2
         ENEMY = 0
         BULLET = 1
         OBSTACLE = 2
         HEALTH = 3
         AMMO = 4
-        EXIT = 5
-        EXIT_SIGN = 6
-        DOOR = 7
-        WALLS = 8
-        AGENT = 9
+        WEAPON = 5
+        EXIT = 6
+        EXIT_SIGN = 7
+        DOOR = 8
+        WALLS = 9
+        MAX = 10
     '''
     class Type:
         UNKNOWN = -1
@@ -32,6 +34,7 @@ class DoomObject:
         EXIT_SIGN = 5
         DOOR = 6
         WALLS = 7
+        MAX = 8
     '''
 
     TYPE = 0
@@ -77,7 +80,8 @@ class DoomObject:
         'ShotgunGuy',              # Former human sergeant
         'SpiderMastermind',        # Spider mastermind
         'WolfensteinSS',           # Wolfenstein soldier
-        'ZombieMan'                # Former human trooper
+        'ZombieMan',                # Former human trooper
+        'Zombieman'  # Former human trooper
     ]
 
     health = [
@@ -93,6 +97,17 @@ class DoomObject:
         'RadSuit',                 # Radiation Suit
         'Soulsphere',              # Soul Sphere (+100 Health)
         'Stimpack'                 # Stimpack(+10 Health)
+    ]
+
+    weapon = [
+        'Chainsaw',
+        'Pistol',
+        'Shotgun',
+        'SuperShotgun',
+        'Chaingun',
+        'RocketLauncher',
+        'PlasmaRifle',
+        'BFG9000'
     ]
 
     obstacle = [
@@ -120,7 +135,6 @@ class DoomObject:
         'Door'
     ]
 
-    '''
     @staticmethod
     def get_id(label):
         object_type = DoomObject.Type.UNKNOWN
@@ -135,6 +149,8 @@ class DoomObject:
             object_type = DoomObject.Type.HEALTH
         elif label.object_name in DoomObject.ammo:
             object_type = DoomObject.Type.AMMO
+        elif label.object_name in DoomObject.weapon:
+            object_type = DoomObject.Type.WEAPON
         elif label.object_name in DoomObject.exit:
             object_type = DoomObject.Type.EXIT
         elif label.object_name in DoomObject.exit_sign:
@@ -154,6 +170,8 @@ class DoomObject:
             object_type = DoomObject.Type.HEALTH
         elif label.object_name in DoomObject.ammo:
             object_type = DoomObject.Type.AMMO
+        elif label.object_name in DoomObject.weapon:
+            object_type = DoomObject.Type.WEAPON
         elif label.object_name in DoomObject.exit:
             object_type = DoomObject.Type.EXIT
         elif label.object_name in DoomObject.exit_sign:
@@ -162,3 +180,4 @@ class DoomObject:
             object_type = DoomObject.Type.DOOR
 
         return object_type
+'''

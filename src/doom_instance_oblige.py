@@ -26,20 +26,15 @@ class DoomInstanceOblige(DoomInstance):
             wad_file = glob.glob(os.path.join(dir, '*.wad'))[0]
 
         super().__init__(config, wad, skiprate, visible, mode, actions, id, args, config_wad=wad_file, map_id=map_id)
-        self.exit = None
         self.distance = 1000
         self.level_map = None
 
         if not eval_mode:
             wad = Wad(wad_file)
             if wad.levels:
-                exits = wad.levels[map_id].get_exits()
-                print(exits)
-                if exits:
-                    self.exit = exits[0]
-                    self.level_map = wad.levels[map_id].get_map([self.exit[1], self.exit[0]])
-                    self.distance = self.get_distance()
-                    self.reward_ratio = self.distance / 100
+                self.level_map = wad.levels[map_id].get_map()
+                self.distance = self.get_distance()
+                self.reward_ratio = self.distance / 100
 
         self.step_num = 0
         self.finished = False
@@ -136,7 +131,7 @@ class DoomInstanceOblige(DoomInstance):
         pose = self.get_pose()
         x1 = pose[DoomObject.X]
         y1 = pose[DoomObject.Y]
-        distance = self.level_map.get_distance(y1, x1)
+        distance = self.level_map.get_exit_distance(y1, x1)
         return distance
 
     def get_pose(self):
@@ -156,5 +151,5 @@ class DoomInstanceOblige(DoomInstance):
         for wad_file in file_list:
             wad = Wad(wad_file)
             map_num = len(wad.levels)
-            levels.extend([[wad_file, i] for i in range(map_num) if wad.levels[i].get_exits()])
+            levels.extend([[wad_file, i] for i in range(map_num) if wad.levels[i].get_map().get_exits()])
         return levels

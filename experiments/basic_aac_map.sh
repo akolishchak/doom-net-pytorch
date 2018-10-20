@@ -8,7 +8,8 @@ fi
 COMMAND="$1"
 MODEL=aac_map
 CHECK_POINT=$BASEDIR/checkpoints/basic_aac_map_cp.pth
-CONFIG=$BASEDIR/environments/basic.cfg
+CONFIG=$BASEDIR/environments/basic-map.cfg
+INSTANCE=map
 
 if [ $COMMAND == 'train' ]
 then
@@ -18,6 +19,7 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
+    --doom_instance $INSTANCE \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
     --frame_num 1 \
@@ -32,6 +34,7 @@ then
     --batch_size 20 \
     --episode_discount 0.95 \
     --model $MODEL \
+    --doom_instance $INSTANCE \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 4 \
@@ -44,6 +47,7 @@ then
     python $BASEDIR/src/main.py \
     --mode test \
     --model $MODEL \
+    --doom_instance $INSTANCE \
     --load $CHECK_POINT \
     --vizdoom_config $CONFIG \
     --skiprate 1 \

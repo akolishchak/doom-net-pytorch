@@ -65,6 +65,7 @@ class Level(object):
         self.upper_right = None
         self.shift = None
         self.lines = []
+        self.things = []
 
     def is_valid(self):
         return self.name is not None and 'VERTEXES' in self.lumps and 'LINEDEFS' in self.lumps
@@ -85,6 +86,10 @@ class Level(object):
         packet_size = 16 if wad_format is 'HEXEN' else 14
         for data in packets_of_size(packet_size, self.lumps['LINEDEFS']):
             self.lines.append(Line(data))
+
+        packet_size = 10
+        for data in packets_of_size(packet_size, self.lumps['THINGS']):
+            self.things.append(Thing(data))
 
     def save_svg(self):
         """ Scale the drawing to fit inside a 1024x1024 canvas (iPhones don't like really large SVGs even if they have the same detail) """
@@ -107,17 +112,8 @@ class Level(object):
 
         dwg.save()
 
-    def get_exits(self):
-        exits = []
-        for line in self.lines:
-            if line.is_exit():
-                x1, y1 = self.vertices[line.a]
-                x2, y2 = self.vertices[line.b]
-                exits.append(((x1+x2)/2, (y1+y2)/2))
-        return exits
-
-    def get_map(self, target=None):
-        return LevelMap(self.vertices, self.lines, target)
+    def get_map(self):
+        return LevelMap(self.vertices, self.lines, self.things)
 
 
 class Line(object):
@@ -134,11 +130,22 @@ class Line(object):
         return self.special in [11, 52, 51, 124, 197, 198]
 
     def is_blocking(self):
-        return self.flags & 1
+        return (self.flags & 0xc001) != 0
 
+
+class Thing(object):
+    """Represents a Thing inside a WAD"""
+    def __init__(self, data):
+        self.x, self.y, self.angle, self.type, self.flags = struct.unpack('<hhHHH', data)
+
+    def is_obstacle(self):
+        return self.type in [57]
 
 class LevelMap(object):
-    def __init__(self, vertices, lines, target):
+    def __init__(self, vertices, lines, things):
+        #
+        # create a scaled map
+        #
         scale = 10
         point_a = np.array([vertices[line.a] for line in lines if line.is_blocking()]) // scale
         point_b = np.array([vertices[line.b] for line in lines if line.is_blocking()]) // scale
@@ -162,12 +169,40 @@ class LevelMap(object):
         self.map[points[:, 0], points[:, 1]] = 1
         #plt.imsave('level_map.png', self.map, cmap=cm.gray)
 
+        # save scales
         self.scale = 1/scale
         self.min_x = min_x
         self.min_y = min_y
-        self.distance = None
-        if target is not None:
-            self.distance = self.get_distance_map(*target)
+
+        # add things
+        for thing in things:
+            if thing.is_obstacle():
+                y, x = self.game_to_map(thing.y, thing.x)
+                y -= 2
+                x -= 2
+                for r in range(5):
+                    for c in range(5):
+                        self.map[y+r, x+c] = 1
+
+        self.vertices = vertices
+        self.lines = lines
+        self.things = things
+
+        # create a distance map for exit
+        exits = self.get_exits()
+        self.exit_distance = None
+        if exits:
+            self.exit_distance = self.get_distance_map(*exits[0])
+
+    def get_exits(self):
+        exits = []
+        for line in self.lines:
+            if line.is_exit():
+                x1, y1 = self.vertices[line.a]
+                x2, y2 = self.vertices[line.b]
+                exits.append(((y1+y2)/2, (x1+x2)/2))
+        print('Exits: ', exits)
+        return exits
 
     def game_to_map(self, y, x):
         y = int(y*self.scale - self.min_y)
@@ -191,13 +226,44 @@ class LevelMap(object):
                     distance_map[y, x] = distance
                     cells.append([y, x, distance])
 
+        for row in range(distance_map.shape[0]):
+            for col in range(distance_map.shape[1]):
+                if distance_map[row, col] == -1:
+                    for dy, dx in [[0, -1], [-1, 0], [0, 1], [1, 0]]:
+                        y = row + dy
+                        x = col + dx
+                        if 0 <= y < distance_map.shape[0] and 0 <= x < distance_map.shape[1] and distance_map[y, x] >= 0:
+                            distance_map[y, x] = -2
+
         return distance_map
 
-    def get_distance(self, y, x):
+    def get_exit_distance(self, y, x):
         y, x = self.game_to_map(y, x)
-        distance = self.distance[y, x]
-        return distance if distance >= 0 else self.distance.max()
+        distance = self.exit_distance[y, x]
+        return distance if distance >= 0 else self.exit_distance.max()
 
+    def get_exit_heading(self, pose_y, pose_x):
+        pose_y, pose_x = self.game_to_map(pose_y, pose_x)
+        min_dist = self.exit_distance.max()
+        heading_idx = 0
+        for idx, (dy, dx) in enumerate([[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]):
+            y = pose_y + dy
+            x = pose_x + dx
+            if 0 <= y < self.exit_distance.shape[0] and 0 <= x < self.exit_distance.shape[1] and \
+                    self.exit_distance[y, x] >= 0 and self.exit_distance[y, x] < min_dist:
+                min_dist = self.exit_distance[y, x]
+                heading_idx = idx
+
+        heading = heading_idx * 45
+        return heading
+
+    def get_health(self):
+        # TODO:
+        return []
+
+    def get_ammo(self):
+        # TODO:
+        return []
 
 def packets_of_size(n, data):
     size = len(data)
