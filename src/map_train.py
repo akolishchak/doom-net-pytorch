@@ -23,6 +23,7 @@ import argparse
 from tensorboardX import SummaryWriter
 from map_model import MapModel
 from focal_loss import FocalLoss
+from doom_object import DoomObject
 
 
 log_basedir = '../logs/{:%Y-%m-%d %H-%M-%S}/'.format(datetime.datetime.now())
@@ -86,7 +87,7 @@ def draw(distance, objects, file_name):
     distance = np.around(distance / 4.0)
     distance[distance > 15] = 15
 
-    screen = np.zeros([9, 16, 32], dtype=np.float32)
+    screen = np.zeros([DoomObject.Type.MAX, 16, 32], dtype=np.float32)
     x = np.around(16 + tan * distance).astype(int)
     y = np.around(distance).astype(int)
     todelete = np.where(y == 15)

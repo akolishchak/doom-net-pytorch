@@ -7,7 +7,6 @@
 import random
 from bt import BTNode
 from doom_object import DoomObject
-from bt_doom_context import Context
 
 #
 # actions

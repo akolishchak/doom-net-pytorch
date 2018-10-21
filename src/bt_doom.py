@@ -8,25 +8,11 @@ import os
 import time
 from bt import BTNode, BTSequence, BTFallback, BTInverter
 from doom_object import DoomObject
+from bt_doom_conditions import ConditionNode
 from bt_doom_actions import Open, Goto, Pick, Attack
 from bt_doom_context import Context
 from doom_instance_bt import DoomInstanceBt
 import vizdoom
-
-# goal_condition, conditions, action, parameters
-# conditions
-
-
-class ConditionNode(BTNode):
-    def __init__(self, name, condition):
-        super().__init__(name)
-        self.condition = condition
-
-    def run(self, context):
-        if self.condition(context):
-            return self.Result.Success
-        else:
-            return self.Result.Failure
 
 
 conditions = [
@@ -185,13 +171,14 @@ def test():
 
     builder = BTBulder(conditions, actions, goal_defs)
     bt = builder.expand('finished')
-    bt.draw('bt_doom_root.png')
+    #bt.draw('bt_doom_root.png')
 
     vizdoom_path = os.path.dirname(vizdoom.__file__)
     config = "../environments/oblige/oblige-map.cfg"
 
     game_levels = DoomInstanceBt.get_game_levels(config)
     print('Game levels: ', len(game_levels))
+
     for i, [wad_file, map_id] in enumerate(game_levels):
         print('Playing ''{}'', map{:02d}'.format(wad_file, map_id+1))
         game = DoomInstanceBt(config,
@@ -207,7 +194,7 @@ def test():
         while True:
             context = Context(game)
             Result = bt.run(context)
-            time.sleep(0.08)
+            time.sleep(0.07)
             if Result == BTNode.Result.Success:
                 break
 

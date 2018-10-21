@@ -46,8 +46,8 @@ class DoomInstanceMap(DoomInstance):
         objects = None
         distance = None
         assert state.labels_buffer is not None and state.depth_buffer is not None
-        screen = np.zeros([9, 16, 32], dtype=np.float32)
-        object_distance = np.ndarray([9, *state.screen_buffer.shape[1:]], dtype=np.float32)
+        screen = np.zeros([DoomObject.Type.MAX, 16, 32], dtype=np.float32)
+        object_distance = np.ndarray([DoomObject.Type.MAX, *state.screen_buffer.shape[1:]], dtype=np.float32)
         object_distance.fill(256)
         for label in state.labels:
             #print(label.object_name)
@@ -61,7 +61,7 @@ class DoomInstanceMap(DoomInstance):
         width = state.depth_buffer.shape[1]
         mid_width = width//2
 
-        object_distance[8, mid_height] = state.depth_buffer[mid_height]
+        object_distance[DoomObject.Type.WALLS, mid_height] = state.depth_buffer[mid_height]
         distance = object_distance.min(axis=1)
         objects = np.argmin(distance, axis=0)
         distance = distance.min(axis=0)
