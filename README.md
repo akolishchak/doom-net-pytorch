@@ -1,6 +1,10 @@
 # DoomNet
 
-DoomNet is a [ViZDoom](http://vizdoom.cs.put.edu.pl/) agent trained by reinforcement learning. The agent is a neural network that outputs a probability of actions given only pixels from the screen buffer and set of game variables.
+DoomNet is a [ViZDoom](http://vizdoom.cs.put.edu.pl/) agent trained by reinforcement learning. The agent is a neural network that outputs a probability of actions given only pixels from the screen buffer and set of game variables. DoomNet is a [1st Runner-Up at Visual Doom AI Competition 2018](https://www.youtube.com/watch?v=8YQgtvC4tw8).
+
+#### [What a simple behavior tree can do](https://www.youtube.com/watch?v=IgrCYjpASS8) 
+[![DoomNet on a simple behavior tree](images/bt-simple.png)](https://www.youtube.com/watch?v=8YQgtvC4tw8)
+
 
 #### [1st Runner-Up at Visual Doom AI Competition 2018](https://www.crowdai.org/challenges/visual-doom-ai-competition-2018-singleplayer-track-1) 
 [![DoomNet track1, submission 0](images/cig2018-track1-sub1.png)](https://www.youtube.com/watch?v=8YQgtvC4tw8)
