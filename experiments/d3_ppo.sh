@@ -46,6 +46,7 @@ elif [ $COMMAND == 'test' ]
 then
     python $BASEDIR/src/main.py \
     --mode test \
+    --batch_size 1 \
     --model $MODEL \
     --load $CHECK_POINT \
     --doom_instance $INSTANCE \
