@@ -27,12 +27,16 @@ class Cells:
         data = [cell.detach().clone() for cell in self.data]
         return Cells(self.cell_num, self.cell_size, self.batch_size, data)
 
-    def apply_mask(self, mask):
+    def get_masked(self, mask):
         mask = mask.view(-1, 1).expand_as(self.data[0]).to(device)
-        self.data = [cell * mask for cell in self.data]
+        return [cell * mask for cell in self.data]
 
     def reset(self):
         self.data = [cell.detach() for cell in self.data]
+
+    def sub_range(self, r1, r2):
+        data = [cell[r1:r2] for cell in self.data]
+        return Cells(self.cell_num, self.cell_size, r2-r1, data)
 
 
 class BaseModel(nn.Module):
@@ -47,7 +51,7 @@ class BaseModel(nn.Module):
         self.conv6 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2)
 
         #self.screen_features1 = nn.Linear(512 * 2 * 4, self.screen_feature_num)
-        self.screen_features1 = nn.LSTMCell(512 * 2 * 4, self.screen_feature_num)
+        self.screen_features1 = nn.LSTMCell(512 * 2 * 4 + variable_num + button_num, self.screen_feature_num)
 
         self.batch_norm = nn.BatchNorm1d(self.screen_feature_num)
 
@@ -55,16 +59,17 @@ class BaseModel(nn.Module):
 
         layer1_size = 128
         self.action1 = nn.Linear(self.screen_feature_num, layer1_size)
-        self.action2 = nn.Linear(layer1_size + variable_num, button_num)
+        self.action2 = nn.Linear(layer1_size, button_num)
 
         self.value1 = nn.Linear(self.screen_feature_num, layer1_size)
-        self.value2 = nn.Linear(layer1_size + variable_num, 1)
+        self.value2 = nn.Linear(layer1_size, 1)
 
         self.screens = None
         self.frame_num = frame_num
         self.batch_size = batch_size
+        self.button_num = button_num
 
-    def forward(self, screen, variables, cells, non_terminal):
+    def forward(self, screen, variables, prev_action, cells, non_terminal, update_cells=True):
         # cnn
         screen_features = F.relu(self.conv1(screen))
         screen_features = F.relu(self.conv2(screen_features))
@@ -73,17 +78,21 @@ class BaseModel(nn.Module):
         screen_features = F.relu(self.conv5(screen_features))
         screen_features = F.relu(self.conv6(screen_features))
         screen_features = screen_features.view(screen_features.size(0), -1)
+        screen_features = torch.cat([screen_features, variables, prev_action], 1)
+
         # rnn
         if screen_features.shape[0] <= self.batch_size:
-            cells.apply_mask(non_terminal)
-            cells.data = self.screen_features1(screen_features, cells.data)
-            return cells.data[0]
+            data = cells.get_masked(non_terminal)
+            data = self.screen_features1(screen_features, data)
+            if update_cells:
+                cells.data = data
+            return data[0]
         else:
             features = []
             for i in range(screen_features.shape[0]//self.batch_size):
-                cells.apply_mask(non_terminal[i])
-                start = i * self.batch_size
-                cells.data = self.screen_features1(screen_features[start:start+self.batch_size], cells.data)
+                data = cells.get_masked(non_terminal[i])
+                start = i * cells.batch_size
+                cells.data = self.screen_features1(screen_features[start:start + cells.batch_size], data)
                 features.append(cells.data[0])
             features = torch.cat(features, dim=0)
             return features
@@ -92,20 +101,17 @@ class BaseModel(nn.Module):
         #features = self.batch_norm(features)
         #features = F.relu(h1)
 
-
-    def get_action(self, features, variables):
+    def get_action(self, features):
         action = F.relu(self.action1(features))
-        action = torch.cat([action, variables], 1)
         action = self.action2(action)
         return action
 
-    def get_value(self, features, variables):
+    def get_value(self, features):
         value = F.relu(self.value1(features))
-        value = torch.cat([value, variables], 1)
         value = self.value2(value)
         return value
 
-    def transform_input(self, screen, variables):
+    def transform_input(self, screen, variables, prev_action):
         screen_batch = []
         if self.frame_num > 1:
             if self.screens is None:
@@ -120,8 +126,9 @@ class BaseModel(nn.Module):
                 screen_batch.append(torch.cat(screens, 0))
             screen = torch.stack(screen_batch)
 
-        variables /= 100
-        return screen.to(device), variables.to(device)
+        prev_action = torch.zeros(prev_action.shape[0], self.button_num, device=device).scatter(-1, prev_action.long(),
+                                                                                                1)
+        return screen.to(device), variables.to(device), prev_action
 
     def set_non_terminal(self, non_terminal):
         if self.screens is not None:
@@ -130,7 +137,7 @@ class BaseModel(nn.Module):
                 self.screens[indexes[idx]] = []
 
 
-StepInfo = namedtuple('StepInfo', ['screen', 'variables', 'log_action', 'value', 'action'])
+StepInfo = namedtuple('StepInfo', ['screen', 'variables', 'prev_action', 'log_action', 'value', 'action'])
 
 
 class PPO(PPOBase):
@@ -169,9 +176,9 @@ class PPO(PPOBase):
         self.cells.reset()
         self.init_cells = self.cells.clone()
 
-    def forward(self, screen, variables, non_terminals, action_only=False, save_step_info=False, action=None):
-        features = self.model.forward(screen, variables, self.cells, non_terminals)
-        action_prob = self.model.get_action(features, variables)
+    def forward(self, screen, variables, prev_action, non_terminals, action_only=False, save_step_info=False, action=None, action_dist=False):
+        features = self.model.forward(screen, variables, prev_action, self.cells, non_terminals)
+        action_prob = self.model.get_action(features)
 
         if action_only:
             _, action = action_prob.max(1, keepdim=True)
@@ -190,7 +197,7 @@ class PPO(PPOBase):
             '''
 
         # value prediction - critic
-        value = self.model.get_value(features, variables)
+        value = self.model.get_value(features)
         # policy log
         #action_log_prob = action_prob.gather(-1, action).log()
         logits = action_prob.log()
@@ -200,32 +207,33 @@ class PPO(PPOBase):
 
         if save_step_info:
             # save step info for backward pass
-            self.steps.append(StepInfo(screen, variables, action_log_prob, value, action))
+            self.steps.append(StepInfo(screen, variables, prev_action, action_log_prob, value, action))
 
         return action, action_log_prob, value, entropy
 
-    def get_action(self, state):
+    def get_action(self, state, prev_action, action_dist=False):
         with torch.set_grad_enabled(False):
             action, _, _ = self.forward(
-                *self.model.transform_input(state.screen, state.variables), self.non_terminal, action_only=True
+                *self.model.transform_input(state.screen, state.variables, prev_action), self.non_terminal, action_only=True, action_dist=action_dist
             )
         return action
 
-    def get_save_action(self, state):
+    def get_save_action(self, state, prev_action):
         with torch.set_grad_enabled(False):
             action, _, _, _ = self.forward(
-                *self.model.transform_input(state.screen, state.variables), self.non_terminal, save_step_info=True
+                *self.model.transform_input(state.screen, state.variables, prev_action), self.non_terminal, save_step_info=True
             )
         return action
 
-    def set_last_state(self, state):
-        screen, variables = self.model.transform_input(state.screen, state.variables)
+    def set_last_state(self, state, prev_action):
+        screen, variables, prev_action = self.model.transform_input(state.screen, state.variables, prev_action)
         with torch.set_grad_enabled(False):
             features = self.model.forward(
-                *self.model.transform_input(state.screen, state.variables), self.cells, self.non_terminal
+                *self.model.transform_input(state.screen, state.variables, prev_action),
+                self.cells, self.non_terminal, update_cells=False
             )
-            value = self.model.get_value(features, variables)
-        self.steps.append(StepInfo(None, None, None, value, None))
+            value = self.model.get_value(features)
+        self.steps.append(StepInfo(None, None, None, None, value, None))
 
     def set_reward(self, reward):
         self.rewards.append(reward * 0.01)  # no clone() b/c of * 0.01
@@ -233,7 +241,6 @@ class PPO(PPOBase):
     def set_non_terminal(self, non_terminal):
         non_terminal = non_terminal.clone()
         self.model.set_non_terminal(non_terminal)
-        self.cells.apply_mask(non_terminal)
         self.non_terminals.append(non_terminal)
         self.non_terminal = non_terminal
 
@@ -267,12 +274,13 @@ class PPO(PPOBase):
 
         screens = torch.cat([step.screen for step in self.steps], dim=0)
         variables = torch.cat([step.variables for step in self.steps], dim=0)
+        prev_actions = torch.cat([step.prev_action for step in self.steps], dim=0)
         non_terminals = torch.cat(self.non_terminals, dim=0)
         actions = torch.cat([step.action for step in self.steps], dim=0)
         old_log_actions = torch.cat([step.log_action for step in self.steps], dim=0)
         for batch in range(4):
             self.cells = self.init_cells.clone()
-            _, log_actions, values, entropy = self.forward(screens, variables, non_terminals, action=actions)
+            _, log_actions, values, entropy = self.forward(screens, variables, prev_actions, non_terminals, action=actions)
 
             ratio = (log_actions - old_log_actions).exp()
             policy_loss = - torch.min(ratio * advantage, torch.clamp(ratio, 1 - 0.1, 1 + 0.1) * advantage).mean()
@@ -285,7 +293,7 @@ class PPO(PPOBase):
 
             loss = policy_loss + value_loss + entropy_loss #+ 0.0001*weights_l2
             loss.backward()
-            nn.utils.clip_grad_norm_(self.parameters(), 1)
+            nn.utils.clip_grad_norm_(self.model.parameters(), 1)
 
             grads = []
             weights = []

@@ -40,11 +40,16 @@ class PPOBase:
         action = torch.zeros(args.batch_size, 1, dtype=torch.long, device=device)
 
         games = []
-        game_levels = args.instance_class.get_game_levels(args.vizdoom_config)
-        print('Game levels: ', len(game_levels))
-        for i, [wad_file, map_id] in enumerate(game_levels):
-            games.append(
-                args.instance_class(args.vizdoom_config, args.wad_path, args.skiprate, actions=args.action_set, id=i, wad_file=wad_file, map_id=map_id))
+        if "oblige" in args.vizdoom_config:
+            game_levels = args.instance_class.get_game_levels(args.vizdoom_config)
+            print('Game levels: ', len(game_levels))
+            for i, [wad_file, map_id] in enumerate(game_levels):
+                games.append(
+                    args.instance_class(args.vizdoom_config, args.wad_path, args.skiprate, actions=args.action_set, id=i, wad_file=wad_file, map_id=map_id))
+        else:
+            for i in range(args.batch_size):
+                games.append(
+                    args.instance_class(args.vizdoom_config, args.wad_path, args.skiprate, actions=args.action_set, id=i))
 
         args.batch_size = len(games)
 
