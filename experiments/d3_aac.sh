@@ -9,7 +9,7 @@ COMMAND="$1"
 MODEL=aac
 CHECK_POINT=$BASEDIR/checkpoints/d3_battle__aac_cp.pth
 CONFIG=$BASEDIR/environments/D3_battle.cfg
-INSTANCE=basic
+INSTANCE=d3
 
 if [ $COMMAND == 'train' ]
 then

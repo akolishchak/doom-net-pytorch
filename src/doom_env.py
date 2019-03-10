@@ -11,6 +11,7 @@ from doom_instance_map import DoomInstanceMap
 from doom_instance_obj import DoomInstanceObj
 from doom_instance_oblige import DoomInstanceOblige
 from doom_instance_oblige_map import DoomInstanceObligeMap
+from doom_instance_d3 import DoomInstanceD3
 
 
 def init_doom_env(args):
@@ -22,6 +23,7 @@ def init_doom_env(args):
     instance_class = {
         'basic': DoomInstance,
         'cig': DoomInstanceCig,
+        'd3': DoomInstanceD3,
         'map': DoomInstanceMap,
         'obj': DoomInstanceObj,
         'oblige': DoomInstanceOblige,

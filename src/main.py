@@ -29,7 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--state_model', default=None, help='path to state model file')
     parser.add_argument('--action_set', default=None, help='action set')
     parser.add_argument('--load', default=None, help='path to model file')
-    parser.add_argument('--doom_instance', default='basic', choices=('basic', 'cig', 'map', 'obj', 'oblige', 'oblige_map'), help='doom instance type')
+    parser.add_argument('--doom_instance', default='basic', choices=('basic', 'cig', 'd3', 'map', 'obj', 'oblige', 'oblige_map'), help='doom instance type')
     parser.add_argument('--vizdoom_config', default='environments/basic.cfg', help='vizdoom config path')
     parser.add_argument('--vizdoom_path', default=_vzd_path, help='path to vizdoom')
     parser.add_argument('--wad_path', default=_vzd_path + '/freedoom2.wad', help='wad file path')
