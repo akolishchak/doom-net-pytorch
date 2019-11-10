@@ -58,6 +58,7 @@ class PPOBase:
             state.screen[idx, :] = torch.from_numpy(normalized_state.screen)
             state.variables[idx, :] = torch.from_numpy(normalized_state.variables)
 
+        [get_state(game) for game in games]
         # start training
         for episode in range(args.episode_num):
             batch_time = time.time()
@@ -87,6 +88,7 @@ class PPOBase:
                         #    random_game_pool.insert(0, game_id)
                     else:
                         non_terminal[idx] = 1
+                [step_game(game) for game in games]
                 policy.set_reward(reward)
                 policy.set_non_terminal(non_terminal)
 
