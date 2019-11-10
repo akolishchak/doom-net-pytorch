@@ -6,7 +6,6 @@
 import os
 import datetime
 from shutil import copyfile
-from multiprocessing.pool import ThreadPool
 import time
 from colorama import Fore, Back, Style
 import torch
@@ -53,15 +52,12 @@ class PPOBase:
 
         args.batch_size = len(games)
 
-        pool = ThreadPool()
-
         def get_state(game):
             idx = game.get_id()
             normalized_state = game.get_state_normalized()
             state.screen[idx, :] = torch.from_numpy(normalized_state.screen)
             state.variables[idx, :] = torch.from_numpy(normalized_state.variables)
 
-        pool.map(get_state, games)
         # start training
         for episode in range(args.episode_num):
             batch_time = time.time()
@@ -91,7 +87,6 @@ class PPOBase:
                         #    random_game_pool.insert(0, game_id)
                     else:
                         non_terminal[idx] = 1
-                pool.map(step_game, games)
                 policy.set_reward(reward)
                 policy.set_non_terminal(non_terminal)
 

@@ -4,7 +4,6 @@
 # Created by Andrey Kolishchak on 01/21/17.
 #
 import os
-from multiprocessing.pool import ThreadPool
 import time
 import torch
 import torch.optim as optim
@@ -45,15 +44,13 @@ class AACBase(Model):
         for i in range(args.batch_size):
             games.append(args.instance_class(args.vizdoom_config, args.wad_path, args.skiprate, actions=args.action_set, id=i))
 
-        pool = ThreadPool()
-
         def get_state(game):
             id = game.get_id()
             normalized_state = game.get_state_normalized()
             state.screen[id, :] = torch.from_numpy(normalized_state.screen)
             state.variables[id, :] = torch.from_numpy(normalized_state.variables)
 
-        pool.map(get_state, games)
+        [get_state(game) for game in games]
         # start training
         for episode in range(args.episode_num):
             batch_time = time.time()
@@ -74,7 +71,7 @@ class AACBase(Model):
                         terminal[id] = 0
                     else:
                         terminal[id] = 1
-                pool.map(step_game, games)
+                [step_game(game) for game in games]
                 self.set_reward(reward)
                 self.set_terminal(terminal)
 
