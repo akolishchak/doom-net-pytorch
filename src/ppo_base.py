@@ -12,7 +12,7 @@ from colorama import Fore, Back, Style
 import torch
 from device import device
 import vizdoom
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
 
@@ -146,7 +146,7 @@ class PPOBase:
                     state.screen[0, :] = torch.from_numpy(step_state.screen)[None, :]
                     state.variables[0, :] = torch.from_numpy(step_state.variables)
                     # compute an action
-                    action = policy.get_action(state, action, action_dist=False)
+                    action = policy.get_action(state, action, action_dist=True)
                     step_state, _, finished = game.step_normalized(action[0][0])
                     policy.set_non_terminal(torch.zeros(1, 1) if finished else torch.ones(1, 1))
                     if finished:

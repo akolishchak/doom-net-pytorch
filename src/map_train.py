@@ -20,7 +20,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from device import device
 import argparse
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from map_model import MapModel
 from focal_loss import FocalLoss
 from doom_object import DoomObject
@@ -155,7 +155,7 @@ def train(args):
     model = MapModel(args).to(device)
     model.train()
 
-    optimizer = optim.Adam(model.parameters(), lr=5e-4)
+    optimizer = optim.AdamW(model.parameters(), lr=5e-4)
 
     if args.load is not None and os.path.isfile(args.load):
         print("loading model parameters {}".format(args.load))

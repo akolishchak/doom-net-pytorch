@@ -27,7 +27,7 @@ class AACBase(Model):
         print("Parameters = ", params_num)
         self.train()
 
-        optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, weight_decay=1e-5, amsgrad=True)
+        optimizer = optim.AdamW(self.parameters(), lr=args.learning_rate, weight_decay=1e-5, amsgrad=True)
         if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
             optimizer_dict = torch.load(args.load+'_optimizer.pth')
             optimizer.load_state_dict(optimizer_dict)

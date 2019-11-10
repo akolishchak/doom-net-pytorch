@@ -8,7 +8,7 @@ from doom_instance import DoomInstance
 import numpy as np
 
 
-class DoomInstanceCig(DoomInstance):
+class DoomInstanceCig():
     def __init__(self, config, wad, skiprate, visible=False, mode=Mode.PLAYER, actions=None, id=None, color=0, bot_num=10):
         self.bot_num = bot_num
         args = (

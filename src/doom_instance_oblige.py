@@ -21,6 +21,8 @@ class DoomInstanceOblige(DoomInstance):
                 #" +viz_debug 0"
         )
 
+        self.map = None
+
         if wad_file is None:
             dir = os.path.dirname(config)
             wad_file = glob.glob(os.path.join(dir, '*.wad'))[0]
@@ -40,6 +42,8 @@ class DoomInstanceOblige(DoomInstance):
         self.finished = False
         self.max_steps = max_steps
         self.eval_mode = eval_mode
+        self.map = self.level_map.map.copy()
+        self.discoveries = 0
 
     def step(self, action):
         if self.use_action_set:
@@ -77,12 +81,17 @@ class DoomInstanceOblige(DoomInstance):
             #print('{}!!!! id = {}, step = {}, distance = {}'.format("DEAD!!!" if dead else "FINISHED!!!", self.id, self.step_num, self.distance))
             self.step_num = 0
             self.episode_return = 0 if not dead else -self.get_distance()
+            self.finished = self.game.is_episode_finished() or self.game.is_player_dead()
+            #self.map = self.level_map.map.copy()
+            #self.discoveries = 0
+            #self.episode_return = self.discoveries
         else:
             distance = self.get_distance()
             if self.distance is not None:
                 diff = self.distance - distance
                 reward = diff if diff != 0 else -1
             self.distance = distance
+            #reward += self.get_discovery_reward()
 
         self.step_num += 1
         if self.step_num >= self.max_steps:
@@ -90,6 +99,9 @@ class DoomInstanceOblige(DoomInstance):
             self.finished = True
             finished = True
             self.episode_return = -self.distance
+            #self.episode_return = self.discoveries
+            #self.map = self.level_map.map.copy()
+            #self.discoveries = 0
 
         state = self.normalize(state)
 
@@ -146,10 +158,25 @@ class DoomInstanceOblige(DoomInstance):
         levels = []
         # assume config in a separate dir with wad files
         dir = os.path.dirname(config)
-        file_list = glob.glob(os.path.join(dir, '*.wad'))
+        #file_list = glob.glob(os.path.join(dir, '*.wad'))
+        file_list = glob.glob(os.path.join(dir, 'mock.wad')) * 5
         file_list.sort()
         for wad_file in file_list:
             wad = Wad(wad_file)
             map_num = len(wad.levels)
             levels.extend([[wad_file, i] for i in range(map_num) if wad.levels[i].get_map().get_exits()])
+        #levels = levels[::4]
         return levels
+
+    def get_discovery_reward(self):
+        pose = self.get_pose()
+        y, x = self.level_map.game_to_map(pose[DoomObject.Y], pose[DoomObject.X])
+        reward = 5 if self.map[y, x] == 0 else -5
+        self.map[y, x] = 2
+        if reward > 0:
+            self.discoveries += 1
+        #    print('{}: reward {}'.format(self.id, self.discoveries))
+        return reward
+
+    def new_episode(self):
+        super().new_episode()

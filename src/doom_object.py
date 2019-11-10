@@ -21,8 +21,9 @@ class DoomObject:
         EXIT = 6
         EXIT_SIGN = 7
         DOOR = 8
-        WALLS = 9
-        MAX = 10
+        SWITCH = 9
+        WALLS = 10
+        MAX = 11
     '''
     class Type:
         UNKNOWN = -1
@@ -135,6 +136,10 @@ class DoomObject:
         'Door'
     ]
 
+    switch = [
+        'Switch'
+    ]
+
     @staticmethod
     def get_id(label):
         object_type = DoomObject.Type.UNKNOWN
@@ -157,6 +162,8 @@ class DoomObject:
             object_type = DoomObject.Type.EXIT_SIGN
         elif label.object_name in DoomObject.door:
             object_type = DoomObject.Type.DOOR
+        elif label.object_name in DoomObject.switch:
+            object_type = DoomObject.Type.SWITCH
 
         return object_type
     '''

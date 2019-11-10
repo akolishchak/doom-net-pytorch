@@ -33,7 +33,8 @@ class Cells:
         return [cell * mask for cell in self.data]
 
     def reset(self):
-        self.data = [cell.detach() for cell in self.data]
+        #self.data = [cell.detach() for cell in self.data]
+        self.data = [torch.zeros(self.batch_size, self.cell_size, device=device) for _ in range(self.cell_num)]
 
     def sub_range(self, r1, r2):
         data = [cell[r1:r2] for cell in self.data]
@@ -253,7 +254,7 @@ class PPOScreen(PPOBase):
         self.cells = Cells(2, self.model.screen_feature_num, args.batch_size)
         self.init_cells = self.cells.clone()
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=args.learning_rate, weight_decay=1e-6, amsgrad=True)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=args.learning_rate, weight_decay=1e-6, amsgrad=True)
         #self.optimizer = optim.Adam(self.model.parameters(), lr=args.learning_rate, weight_decay=0, amsgrad=True)
         if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
             optimizer_dict = torch.load(args.load+'_optimizer.pth')

@@ -51,4 +51,6 @@ class DoomInstanceD3(DoomInstance):
             reward += diff.sum()
             self.variables = state.variables.copy()
 
+        reward -= 10
+
         return state, reward, finished

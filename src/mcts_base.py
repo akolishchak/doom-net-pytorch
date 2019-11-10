@@ -126,7 +126,7 @@ class MCTSBase(Model):
         training_data_loader = DataLoader(dataset=dataset, num_workers=1, batch_size=args.batch_size, shuffle=True)
 
         model.train()
-        optimizer = optim.Adam(model.parameters(), lr=5e-3, weight_decay=1e-4, amsgrad=True)
+        optimizer = optim.AdamW(model.parameters(), lr=5e-3, weight_decay=1e-4, amsgrad=True)
 
         mean_value_loss = 0
         mean_policy_loss = 0

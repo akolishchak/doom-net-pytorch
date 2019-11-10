@@ -170,7 +170,7 @@ class StateBase:
 
         training_data_loader = data_generator(args)
 
-        optimizer = optim.Adam(state_model.parameters(), lr=5e-4, weight_decay=1e-4, amsgrad=True)
+        optimizer = optim.AdamW(state_model.parameters(), lr=5e-4, weight_decay=1e-4, amsgrad=True)
 
         cells = StateModel.get_cells(args.batch_size)
 
@@ -235,7 +235,7 @@ class StateBase:
         controller = Model.create(AdvantageActorCriticController, args) #, args.load)
         controller.train()
 
-        optimizer = optim.Adam(controller.parameters(), lr=5e-4, amsgrad=True)
+        optimizer = optim.AdamW(controller.parameters(), lr=5e-4, amsgrad=True)
         #if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
         #    optimizer_dict = torch.load(args.load+'_optimizer.pth')
         #    optimizer.load_state_dict(optimizer_dict)

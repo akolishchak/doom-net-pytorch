@@ -64,7 +64,7 @@ def train(args):
         del source_model
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=5e-4)
+    optimizer = optim.AdamW(model.parameters(), lr=5e-4)
 
     for epoch in range(1500000):
         running_loss = 0

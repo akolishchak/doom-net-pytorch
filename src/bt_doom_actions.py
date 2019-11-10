@@ -41,6 +41,8 @@ class Goto(BTNode):
         if self.object_type == DoomObject.Type.EXIT:
             heading = context.level_map.get_exit_heading(context.pose[DoomObject.Y], context.pose[DoomObject.X])
             headling_error = context.pose[DoomObject.HEADING] - heading
+            # randomize heading
+            headling_error += 2*(random.random() - 0.5)*0.5*headling_error
             context.game_step([100, 0, headling_error, 0, 0])
             return self.Result.Failure
         else:

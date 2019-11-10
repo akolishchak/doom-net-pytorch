@@ -18,7 +18,7 @@ then
     python $BASEDIR/src/main.py \
     --mode train \
     --episode_size 150 \
-    --batch_size 110 \
+    --batch_size 20 \
     --episode_discount 0.99333333333 \
     --model $MODEL \
     --action_set $ACTION_SET \
@@ -34,7 +34,7 @@ then
     python $BASEDIR/src/main.py \
     --mode train \
     --episode_size 150 \
-    --batch_size 110 \
+    --batch_size 20 \
     --episode_discount 0.99333333333 \
     --model $MODEL \
     --action_set $ACTION_SET \

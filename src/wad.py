@@ -66,6 +66,8 @@ class Level(object):
         self.shift = None
         self.lines = []
         self.things = []
+        self.sectors = []
+        self.sides = []
 
     def is_valid(self):
         return self.name is not None and 'VERTEXES' in self.lumps and 'LINEDEFS' in self.lumps
@@ -83,13 +85,21 @@ class Level(object):
 
         self.shift = (0 - self.lower_left[0], 0 - self.lower_left[1])
 
-        packet_size = 16 if wad_format is 'HEXEN' else 14
+        packet_size = 14
         for data in packets_of_size(packet_size, self.lumps['LINEDEFS']):
             self.lines.append(Line(data))
 
         packet_size = 10
         for data in packets_of_size(packet_size, self.lumps['THINGS']):
             self.things.append(Thing(data))
+
+        packet_size = 26
+        for data in packets_of_size(packet_size, self.lumps['SECTORS']):
+            self.sectors.append(Sector(data))
+
+        packet_size = 30
+        for data in packets_of_size(packet_size, self.lumps['SIDEDEFS']):
+            self.sides.append(Side(data))
 
     def save_svg(self):
         """ Scale the drawing to fit inside a 1024x1024 canvas (iPhones don't like really large SVGs even if they have the same detail) """
@@ -112,15 +122,40 @@ class Level(object):
 
         dwg.save()
 
+    def is_line_blocking(self, line):
+        if line.is_blocking():
+            return True
+
+        return False
+        '''
+        # skip tagged sectors
+        left_sector = self.sectors[self.sides[line.left_side].sector]
+        right_sector = self.sectors[self.sides[line.right_side].sector]
+        if left_sector.tag != 0 or right_sector.tag != 0:
+            return False
+
+        # blocking if floor levels different more than 16
+        return abs(left_sector.floor_height - right_sector.floor_height) > 16
+        '''
+
+    def is_line_door(self, line):
+        if line.is_door():
+            return True
+
+        left_sector = self.sectors[self.sides[line.left_side].sector]
+        right_sector = self.sectors[self.sides[line.right_side].sector]
+        if left_sector.tag != 0 or right_sector.tag != 0:
+            return True
+
     def get_map(self):
-        return LevelMap(self.vertices, self.lines, self.things)
+        return LevelMap(self)
 
 
 class Line(object):
     """Represents a Linedef inside a WAD"""
 
     def __init__(self, data):
-        self.a, self.b, self.flags, self.special, self.sector, self.left_side, self.right_side = \
+        self.a, self.b, self.flags, self.special, self.sector_tag, self.left_side, self.right_side = \
             struct.unpack('<hhhhhhh', data)
 
     def is_one_sided(self):
@@ -132,6 +167,11 @@ class Line(object):
     def is_blocking(self):
         return (self.flags & 0xc001) != 0
 
+    def is_door(self):
+        return self.special in [1, 26, 27, 28, 31, 32, 33, 34, 117, 118]
+                                #29, 63, 4, 90, 103, 61, 2, 86, 50, 42, 3, 75, 16, 76, 46, 111, 114, 108]
+                                #105, 112, 115, 109, 106, 113, 116, 110, 107, 135, 134, 133, 99, 137, 136]
+
 
 class Thing(object):
     """Represents a Thing inside a WAD"""
@@ -141,14 +181,29 @@ class Thing(object):
     def is_obstacle(self):
         return self.type in [57]
 
+
+class Sector(object):
+    """Represents a Sector inside a WAD"""
+    def __init__(self, data):
+        self.floor_height, _, _, _, _, _, self.tag = struct.unpack('<hhqqhHH', data)
+
+
+class Side(object):
+    """Represents a Sidedef inside a WAD"""
+    def __init__(self, data):
+        self.x, self.y, _, _, _, self.sector = struct.unpack('<hhqqqH', data)
+
+
 class LevelMap(object):
-    def __init__(self, vertices, lines, things):
+    def __init__(self, level):
+        vertices, lines, things = level.vertices, level.lines, level.things
         #
         # create a scaled map
         #
         scale = 10
-        point_a = np.array([vertices[line.a] for line in lines if line.is_blocking()]) // scale
-        point_b = np.array([vertices[line.b] for line in lines if line.is_blocking()]) // scale
+        blocking_lines = [line for line in lines if level.is_line_blocking(line)]
+        point_a = np.array([vertices[line.a] for line in blocking_lines]) // scale
+        point_b = np.array([vertices[line.b] for line in blocking_lines]) // scale
         points = np.vstack([point_a, point_b])
 
         max_x, max_y = points.max(0)
@@ -167,7 +222,29 @@ class LevelMap(object):
 
         self.map = np.zeros(shape=(size_y, size_x), dtype=int)
         self.map[points[:, 0], points[:, 1]] = 1
-        #plt.imsave('level_map.png', self.map, cmap=cm.gray)
+        plt.imsave('level_map.png', self.map, cmap=cm.gray)
+
+        # doors map
+        door_lines = [line for line in lines if level.is_line_door(line)]
+        if door_lines:
+            point_a = np.array([vertices[line.a] for line in door_lines]) // scale
+            point_b = np.array([vertices[line.b] for line in door_lines]) // scale
+
+            point_a -= np.array([min_x, min_y])
+            point_b -= np.array([min_x, min_y])
+            point_y, point_x = [], []
+            for a, b in zip(point_a, point_b):
+                y, x = skimage.draw.line(a[1], a[0], b[1], b[0])
+                point_y.extend(y)
+                point_x.extend(x)
+
+            points = np.stack([point_y, point_x], axis=1)
+
+            self.map_doors = np.zeros(shape=(size_y, size_x), dtype=int)
+            self.map_doors[points[:, 0], points[:, 1]] = 1
+            map_doors = np.flip(self.map_doors, axis=0)
+            plt.imsave('level_map_doors.png', map_doors, cmap=cm.gray)
+
 
         # save scales
         self.scale = 1/scale

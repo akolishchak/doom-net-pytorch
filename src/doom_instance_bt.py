@@ -16,6 +16,7 @@ from wad import Wad
 
 class DoomInstanceBt(DoomInstance):
     def __init__(self, config, wad, skiprate, visible=False, mode=Mode.PLAYER, actions=None, id=None, args=None, config_wad=None, map_id=None):
+        args = "+logfile zdoom.log"
         super().__init__(config, wad, skiprate, visible, mode, actions, id, args, config_wad, map_id)
         self.angles = None
         self.map_mode = self.game.is_depth_buffer_enabled() and self.game.is_labels_buffer_enabled()
@@ -47,7 +48,7 @@ class DoomInstanceBt(DoomInstance):
 
     class NormalizedState:
         def __init__(self, screen, variables=None, depth=None, labels=None,
-                     automap=None, distance=None, objects=None):
+                     automap=None, distance=None, objects=None, screen_buffer=None):
             self.screen = screen
             self.depth = depth
             self.labels = labels
@@ -56,6 +57,7 @@ class DoomInstanceBt(DoomInstance):
             self.automap = automap
             self.distance = distance
             self.objects = objects
+            self.screen_buffer = screen_buffer
 
     def normalize(self, state):
         assert state.labels_buffer is not None and state.depth_buffer is not None
@@ -64,7 +66,10 @@ class DoomInstanceBt(DoomInstance):
         distance = None
         if state.labels_buffer is not None and state.depth_buffer is not None:
             screen = np.zeros([DoomObject.Type.MAX, 128, 256], dtype=np.float32)
-            object_distance = np.ndarray([DoomObject.Type.MAX, *state.screen_buffer.shape[1:]], dtype=np.float32)
+            shape = state.screen_buffer.shape[1:]
+            if len(shape) < 2:
+                shape = state.screen_buffer.shape
+            object_distance = np.ndarray([DoomObject.Type.MAX, *shape], dtype=np.float32)
             object_distance.fill(256)
             for label in state.labels:
                 channel = DoomObject.get_id(label)
@@ -101,7 +106,15 @@ class DoomInstanceBt(DoomInstance):
             depth = None
 
         if state.labels_buffer is not None:
-            labels = state.labels_buffer
+            labels = state.labels_buffer.copy()
+            # fix label values
+            label_map = {}
+            for label in state.labels:
+                object_id = DoomObject.get_id(label)
+                if object_id >= 0:
+                    label_map[label.value] = object_id
+            for k, v in label_map.items():
+                labels[state.labels_buffer == k] = v
         else:
             labels = None
 
@@ -111,7 +124,8 @@ class DoomInstanceBt(DoomInstance):
             automap = None
 
         return self.NormalizedState(screen=screen, variables=variables, depth=depth,
-                               labels=labels, automap=automap, distance=distance, objects=objects)
+                               labels=labels, automap=automap, distance=distance, objects=objects,
+                               screen_buffer=state.screen_buffer.astype(np.float32) / 127.5 - 1.)
 
     def get_pose(self):
         x = self.game.get_game_variable(GameVariable.POSITION_X)

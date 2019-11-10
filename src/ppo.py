@@ -159,7 +159,7 @@ class PPO(PPOBase):
         self.cells = Cells(2, self.model.screen_feature_num, args.batch_size)
         self.init_cells = self.cells.clone()
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=args.learning_rate,  weight_decay=1e-6, amsgrad=True)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=args.learning_rate,  weight_decay=1e-6, amsgrad=True)
         '''
         if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
             optimizer_dict = torch.load(args.load+'_optimizer.pth')
@@ -199,11 +199,12 @@ class PPO(PPOBase):
         # value prediction - critic
         value = self.model.get_value(features)
         # policy log
-        #action_log_prob = action_prob.gather(-1, action).log()
-        logits = action_prob.log()
-        action_log_prob = logits.gather(-1, action)
+        action_log_prob = action_prob.gather(-1, action).log()
+        #logits = action_prob.log()
+        #action_log_prob = logits.gather(-1, action)
 
-        entropy = -(logits * action_prob).sum(-1)
+        entropy = None
+        #entropy = -(logits * action_prob).sum(-1)
 
         if save_step_info:
             # save step info for backward pass
@@ -285,13 +286,13 @@ class PPO(PPOBase):
             ratio = (log_actions - old_log_actions).exp()
             policy_loss = - torch.min(ratio * advantage, torch.clamp(ratio, 1 - 0.1, 1 + 0.1) * advantage).mean()
             value_loss = F.smooth_l1_loss(values, returns.view(-1, 1))
-            entropy_loss = -entropy.mean() * 0.01
+            #entropy_loss = -entropy.mean() * 0.05
 
             #weights_l2 = 0
             #for param in self.parameters():
             #    weights_l2 += param.norm(2)
 
-            loss = policy_loss + value_loss + entropy_loss #+ 0.0001*weights_l2
+            loss = policy_loss + value_loss #+ entropy_loss #+ 0.0001*weights_l2
             loss.backward()
             nn.utils.clip_grad_norm_(self.model.parameters(), 1)
 
