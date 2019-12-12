@@ -27,10 +27,6 @@ class Cells:
         data = [cell.detach().clone() for cell in self.data]
         return Cells(self.cell_num, self.cell_size, self.batch_size, data)
 
-    def get_masked(self, mask):
-        mask = mask.view(-1, 1).expand_as(self.data[0]).to(device)
-        return [cell * mask for cell in self.data]
-
     def reset(self):
         self.data = [cell.detach() for cell in self.data]
 
@@ -82,7 +78,7 @@ class BaseModel(nn.Module):
 
         # rnn
         if screen_features.shape[0] <= self.batch_size:
-            data = cells.get_masked(non_terminal)
+            data = cells.data
             data = self.screen_features1(screen_features, data)
             if update_cells:
                 cells.data = data
@@ -90,16 +86,12 @@ class BaseModel(nn.Module):
         else:
             features = []
             for i in range(screen_features.shape[0]//self.batch_size):
-                data = cells.get_masked(non_terminal[i])
                 start = i * cells.batch_size
-                cells.data = self.screen_features1(screen_features[start:start + cells.batch_size], data)
+                end = start + cells.batch_size
+                cells.data = self.screen_features1(screen_features[start:end], self.data)
                 features.append(cells.data[0])
             features = torch.cat(features, dim=0)
             return features
-
-        #features = self.screen_features1(screen_features)
-        #features = self.batch_norm(features)
-        #features = F.relu(h1)
 
     def get_action(self, features):
         action = F.relu(self.action1(features))
@@ -126,9 +118,9 @@ class BaseModel(nn.Module):
                 screen_batch.append(torch.cat(screens, 0))
             screen = torch.stack(screen_batch)
 
-        prev_action = torch.zeros(prev_action.shape[0], self.button_num, device=device).scatter(-1, prev_action.long(),
+        prev_action = torch.zeros(prev_action.shape[0], self.button_num).scatter(-1, prev_action.long(),
                                                                                                 1)
-        return screen.to(device), variables.to(device), prev_action
+        return screen.to(device), variables.to(device), prev_action.to(device)
 
     def set_non_terminal(self, non_terminal):
         if self.screens is not None:
@@ -159,7 +151,7 @@ class PPO(PPOBase):
         self.cells = Cells(2, self.model.screen_feature_num, args.batch_size)
         self.init_cells = self.cells.clone()
 
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=args.learning_rate,  weight_decay=1e-6, amsgrad=True)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=args.learning_rate, weight_decay=0, amsgrad=True)
         '''
         if args.load is not None and os.path.isfile(args.load + '_optimizer.pth'):
             optimizer_dict = torch.load(args.load+'_optimizer.pth')
@@ -188,13 +180,6 @@ class PPO(PPOBase):
 
         if action is None:
             action = torch.multinomial(action_prob, 1)
-            # greedy actions
-            '''
-            if random.random() < 0.01:
-                action = torch.LongTensor(action_prob.size(0), 1).random_(0, action_prob.size(1)).to(device)
-            else:
-               _, action = action_prob.max(1, keepdim=True)
-            '''
 
         # value prediction - critic
         value = self.model.get_value(features)
@@ -227,7 +212,6 @@ class PPO(PPOBase):
         return action
 
     def set_last_state(self, state, prev_action):
-        screen, variables, prev_action = self.model.transform_input(state.screen, state.variables, prev_action)
         with torch.set_grad_enabled(False):
             features = self.model.forward(
                 *self.model.transform_input(state.screen, state.variables, prev_action),
@@ -260,6 +244,7 @@ class PPO(PPOBase):
         for i in range(len(rewards) - 1, -1, -1):
             step_return.mul_(non_terminals[i]).mul_(self.discount).add_(rewards[i])
             returns[i] = step_return
+
         returns = returns.to(device)
 
         #
@@ -269,7 +254,6 @@ class PPO(PPOBase):
         for i in range(steps):
             advantage[i] = returns[i] - episode_steps[i].value.detach()
         advantage = advantage.view(-1, 1).to(device)
-        #print(advantage.mean().item(), advantage.min().item(), advantage.max().item())
 
         self.model.train()
 
