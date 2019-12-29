@@ -250,6 +250,7 @@ class PPOScreen(PPOBase):
     def reset(self):
         self.steps = []
         self.rewards = []
+        # termination status is for next state, so first episode state is always non-terminal
         self.non_terminals = []
         self.cells.reset()
         self.init_cells = self.cells.clone()
@@ -281,6 +282,8 @@ class PPOScreen(PPOBase):
         for i in range(steps_num):
             advantage[i] = returns[i] - episode_steps[i].value.detach()
         advantage = advantage.view(-1, 1).to(device)
+        # normalize advantages
+        advantage = (advantage - advantage.mean()) / (advantage.std() + 1e-5)
         returns = returns.view(-1, 1)
 
         self.model.train()
@@ -303,13 +306,7 @@ class PPOScreen(PPOBase):
             ).mean()
             value_loss = F.smooth_l1_loss(values, returns)
 
-            #weights_l2 = 0
-            #for param in self.parameters():
-            #    weights_l2 += param.norm(2)
-
             loss = policy_loss + value_loss #+ entropy_loss #+ 0.0001*weights_l2
-            # sub batch weight
-            loss = loss / self.args.batch_size
             # backpro
             loss.backward()
 
